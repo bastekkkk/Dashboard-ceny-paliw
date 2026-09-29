@@ -5,7 +5,7 @@ Lokalny dashboard Streamlit: Ekodiesel ORLEN (hurt), ARA (ICE Low Sulphur Gasoil
 ## Uruchomienie (5 komend)
 
 ```bash
-git clone https://github.com/bastekkkk/dashboard-ceny-paliw.git && cd dashboard-ceny-paliw
+git clone https://github.com/bastekkkk/Dashboard-ceny-paliw.git && cd Dashboard-ceny-paliw
 python -m venv .venv
 .venv/bin/pip install -r requirements.txt        # Windows: .venv\Scripts\pip install -r requirements.txt
 .venv/bin/python update_data.py                  # pierwsze pobranie pełnej historii (~5 s)
