@@ -1,8 +1,12 @@
 """ARA – ICE Low Sulphur Gasoil (USD/t) z OilPriceAPI, kod GASOIL_USD.
 
-Wymaga darmowego klucza API w zmiennej środowiskowej OILPRICEAPI_KEY
-(rejestracja: https://www.oilpriceapi.com/auth/signup). Plan Free: 50 zapytań/dzień,
-skrypt zużywa 1 zapytanie na uruchomienie (2 przy pierwszym).
+Wymaga klucza API w zmiennej środowiskowej OILPRICEAPI_KEY
+(rejestracja: https://www.oilpriceapi.com/auth/signup). Skrypt zużywa 1 zapytanie
+na uruchomienie (2 przy pierwszym).
+
+- Codziennie: /latest = ostatnia transakcja; uruchomione po zamknięciu ICE ≈ cena zamknięcia.
+- Tylko przy pustej bazie: /past_month z interval=daily = ŚREDNIE dzienne (kubełki UTC),
+  bez weekendów (niedzielna sesja wieczorna ICE należy do poniedziałku). Oznaczone osobnym źródłem.
 Warunki OilPriceAPI: notowania giełdowe (ICE) tylko do użytku wewnętrznego –
 bez publicznego wyświetlania i redystrybucji.
 """
@@ -15,7 +19,8 @@ from urllib3.util.retry import Retry
 
 SERIES = "ara_gasoil"  # ta sama seria co wpis ręczny (sources/ara_manual.py)
 UNIT = "USD/t"
-SOURCE = "OilPriceAPI GASOIL_USD (ICE LS Gasoil)"
+SOURCE_LAST = "OilPriceAPI GASOIL_USD – ostatnia cena dnia"
+SOURCE_AVG = "OilPriceAPI GASOIL_USD – średnia dzienna (import historii)"
 CODE = "GASOIL_USD"
 BASE_URL = "https://api.oilpriceapi.com/v1/prices"
 TIMEOUT = 30
@@ -52,18 +57,31 @@ def _parse(rows: list[dict]) -> pd.DataFrame:
     return df.drop_duplicates("date", keep="last")[["date", "value"]].reset_index(drop=True)
 
 
-def fetch(full: bool) -> pd.DataFrame:
+def _get(endpoint: str, params: dict):
     key = os.environ.get("OILPRICEAPI_KEY", "").strip()
     if not key:
         raise RuntimeError("Brak klucza API: ustaw zmienną środowiskową OILPRICEAPI_KEY (patrz README).")
-    endpoint = "past_month" if full else "past_week"
-    r = _session(key).get(
-        f"{BASE_URL}/{endpoint}", params={"by_code": CODE, "interval": "daily", "per_page": 100}, timeout=TIMEOUT
-    )
+    r = _session(key).get(f"{BASE_URL}/{endpoint}", params={"by_code": CODE, **params}, timeout=TIMEOUT)
+    if r.status_code == 402:
+        raise RuntimeError("HTTP 402: plan OilPriceAPI nie obejmuje GASOIL_USD lub wyczerpano limit (koniec triala?)")
     if r.status_code != 200:
         raise RuntimeError(f"HTTP {r.status_code}: {r.text[:200]}")
-    data = r.json().get("data") or {}
+    return r.json().get("data")
+
+
+def fetch_latest() -> pd.DataFrame:
+    """Ostatnia transakcja; data = dzień notowania wg as_of (UTC)."""
+    data = _get("latest", {})
+    if not isinstance(data, dict) or "price" not in data:
+        raise RuntimeError(f"Nieoczekiwany format odpowiedzi: {str(data)[:200]}")
+    return _parse([data])
+
+
+def fetch_history_avg() -> pd.DataFrame:
+    """Średnie dzienne z ostatnich ~30 dni, tylko dni pon–pt."""
+    data = _get("past_month", {"interval": "daily", "per_page": 100}) or {}
     rows = data.get("prices") if isinstance(data, dict) else data
     if not isinstance(rows, list):
         raise RuntimeError(f"Nieoczekiwany format odpowiedzi: {str(data)[:200]}")
-    return _parse(rows)
+    df = _parse(rows)
+    return df[pd.to_datetime(df["date"]).dt.dayofweek < 5].reset_index(drop=True)

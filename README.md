@@ -18,8 +18,10 @@ python -m venv .venv && export OILPRICEAPI_KEY=twoj_klucz   # Windows: setx OILP
 - cron (Linux/macOS), pon–sob 18:30: `30 18 * * 1-6 cd /ścieżka/do/repo && .venv/bin/python update_data.py`
 - Windows: Harmonogram zadań → akcja `.venv\Scripts\python.exe update_data.py`, katalog startowy = repo.
 - **ARA** pobiera się z [OilPriceAPI](https://www.oilpriceapi.com) (kod `GASOIL_USD`). Darmowy klucz:
-  https://www.oilpriceapi.com/auth/signup → zmienna środowiskowa `OILPRICEAPI_KEY`. Plan Free = 50 zapytań/dzień,
-  skrypt zużywa 1 na uruchomienie. Uruchamiaj po zamknięciu ICE (~18:30), żeby zapisać cenę końcową, a nie śródsesyjną.
+  https://www.oilpriceapi.com/auth/signup → zmienna środowiskowa `OILPRICEAPI_KEY`. Skrypt zużywa 1 zapytanie
+  na uruchomienie (2 przy pierwszym). Uruchamiaj po zamknięciu ICE (~18:30), żeby zapisać ostatnią cenę dnia, a nie śródsesyjną.
+  Pierwsze uruchomienie importuje ~30 dni **średnich dziennych** (oznaczone w źródle) – to nie są ceny zamknięcia.
+  Nowe konto startuje na 7-dniowym trialu; czy plan Free obejmuje `GASOIL_USD`, okaże się po trialu (HTTP 402 = nie).
 - Awaryjnie: wpis ręczny w sekcji 2 (rozwijany formularz) z
   [TradingView ICEEUR:ULS1!](https://www.tradingview.com/symbols/ICEEUR-ULS1!/). TradingView nie jest pobierany
   automatycznie – regulamin zabrania automatycznego użycia danych.

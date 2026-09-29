@@ -57,15 +57,20 @@ def metric(df: pd.DataFrame, label: str, unit: str, decimals: int = 2) -> None:
         diff = last["value"] - prev["value"]
         delta = f"{fmt.format(diff)} ({diff / prev['value']:+.2%})".replace(",", " ")
         help_txt = f"Zmiana d/d względem poprzedniego notowania z {prev['date']:%Y-%m-%d}."
+        if prev["source"] != last["source"]:
+            help_txt += f" UWAGA: inne źródło/miara poprzedniego notowania ({prev['source']})."
     st.metric(label, f"{fmt.format(last['value'])} {unit}".replace(",", " "), delta, help=help_txt)
     st.caption(f"Notowanie z **{last['date']:%Y-%m-%d}** · źródło: {last['source']} · jednostka: {unit}")
+    if len(df) > 1 and df.iloc[-2]["source"] != last["source"]:
+        st.caption(f"⚠️ Zmiana d/d liczona względem innej miary: {df.iloc[-2]['source']}.")
 
 
 def line_chart(df: pd.DataFrame, name: str, unit: str) -> None:
     fig = go.Figure(
         go.Scatter(
             x=df["date"], y=df["value"], name=name, mode="lines", line=dict(width=2, color=COLORS["single"]),
-            hovertemplate="%{x|%Y-%m-%d}<br>%{y:,.2f} " + unit + "<extra></extra>",
+            customdata=df["source"],
+            hovertemplate="%{x|%Y-%m-%d}<br>%{y:,.2f} " + unit + "<br>%{customdata}<extra></extra>",
         )
     )
     fig.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=unit, hovermode="x unified")
@@ -115,8 +120,10 @@ if not orlen_df.empty:
 # ---------------------------------------------------------------- 2. ARA
 st.header("2. ARA – ICE Low Sulphur Gasoil")
 st.caption(
-    "Automatycznie z OilPriceAPI (kod GASOIL_USD, ICE LS Gasoil front-month), **USD/t**, przez `update_data.py`. "
-    "Wartość z dzisiaj może być śródsesyjna – nadpisuje ją kolejne uruchomienie po zamknięciu ICE."
+    "Automatycznie z OilPriceAPI (kod GASOIL_USD, ICE LS Gasoil), **USD/t**, przez `update_data.py`: "
+    "ostatnia transakcja dnia (uruchomienie po zamknięciu ICE ≈ cena zamknięcia; wcześniej wartość śródsesyjna). "
+    "Notowania ze źródłem „średnia dzienna” pochodzą z jednorazowego importu historii – to nie są ceny zamknięcia. "
+    "Źródło każdego punktu widać w dymku wykresu."
 )
 source_warning(ara_manual.SERIES)
 with st.expander("Wpis ręczny (awaryjnie, gdy API nie działa)"), st.form("ara_form", clear_on_submit=True):
@@ -145,7 +152,7 @@ else:
         (d for d in weekdays if d > missing[-1]), ara_df["date"].max().date()
     )
     st.caption(
-        f"Historia w bazie od {ara_df['date'].min():%Y-%m-%d} ({len(ara_df)} notowań; API daje max 30 dni wstecz, dalej budujemy własne snapshoty). "
+        f"Historia w bazie od {ara_df['date'].min():%Y-%m-%d} ({len(ara_df)} notowań; import historii z API obejmuje ~30 dni, dalej codzienne snapshoty). "
         f"Historia kompletna (pon–pt) od **{complete_from}**. Brakujące dni robocze: {len(missing)}"
         + (f" (ostatni: {missing[-1]})" if missing else "")
         + ". Dni świąteczne ICE są liczone jako braki."

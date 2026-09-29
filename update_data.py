@@ -27,9 +27,14 @@ def update_yahoo(series: str) -> str:
 
 
 def update_ara() -> str:
-    df = oilpriceapi.fetch(full=db.last_date(oilpriceapi.SERIES) is None)
-    n = db.upsert(oilpriceapi.SERIES, df, oilpriceapi.UNIT, oilpriceapi.SOURCE)
-    return f"{n} notowań ({df['date'].iloc[0]} – {df['date'].iloc[-1]})"
+    msg = ""
+    if db.last_date(oilpriceapi.SERIES) is None:
+        hist = oilpriceapi.fetch_history_avg()
+        db.upsert(oilpriceapi.SERIES, hist, oilpriceapi.UNIT, oilpriceapi.SOURCE_AVG)
+        msg = f"import {len(hist)} średnich dziennych ({hist['date'].iloc[0]} – {hist['date'].iloc[-1]}); "
+    last = oilpriceapi.fetch_latest()
+    db.upsert(oilpriceapi.SERIES, last, oilpriceapi.UNIT, oilpriceapi.SOURCE_LAST)
+    return msg + f"ostatnia cena {last['value'].iloc[0]} USD/t z {last['date'].iloc[0]}"
 
 
 def run_all() -> dict[str, tuple[bool, str]]:
