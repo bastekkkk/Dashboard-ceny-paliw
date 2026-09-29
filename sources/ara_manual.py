@@ -1,8 +1,8 @@
-"""ARA – ICE Low Sulphur Gasoil Futures (USD/t), wpisywane ręcznie raz dziennie.
+"""ARA – awaryjny wpis ręczny (USD/t), gdy OilPriceAPI nie działa (główne źródło: sources/oilpriceapi.py).
 
-Brak darmowego, niezablokowanego źródła automatycznego (zweryfikowano: Yahoo G=F -> 404,
-Stooq -> challenge JS). Użytkownik przepisuje cenę zamknięcia / ostatnią cenę z
+Użytkownik przepisuje cenę zamknięcia / ostatnią cenę z
 https://www.tradingview.com/symbols/ICEEUR-ULS1!/ (kontrakt ciągły front-month).
+TradingView nie jest pobierany automatycznie – regulamin zabrania "machine-driven" użycia danych.
 """
 from datetime import date
 

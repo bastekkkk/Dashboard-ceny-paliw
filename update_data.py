@@ -2,12 +2,12 @@
 
 Uruchamianie: `python update_data.py` (ręcznie, cron lub Harmonogram zadań Windows).
 Przycisk „Odśwież" w app.py wywołuje tę samą funkcję run_all().
-ARA nie jest tu pobierane – wpisuje się je ręcznie w aplikacji (patrz sources/ara_manual.py).
+ARA pobierane z OilPriceAPI (wymaga OILPRICEAPI_KEY); awaryjnie wpis ręczny w aplikacji.
 """
 from datetime import date, timedelta
 
 import db
-from sources import orlen, yahoo
+from sources import oilpriceapi, orlen, yahoo
 
 
 def update_orlen() -> str:
@@ -26,9 +26,15 @@ def update_yahoo(series: str) -> str:
     return f"{n} notowań ({df['date'].iloc[0]} – {df['date'].iloc[-1]})"
 
 
+def update_ara() -> str:
+    df = oilpriceapi.fetch(full=db.last_date(oilpriceapi.SERIES) is None)
+    n = db.upsert(oilpriceapi.SERIES, df, oilpriceapi.UNIT, oilpriceapi.SOURCE)
+    return f"{n} notowań ({df['date'].iloc[0]} – {df['date'].iloc[-1]})"
+
+
 def run_all() -> dict[str, tuple[bool, str]]:
     """Każde źródło osobno – błąd jednego nie zatrzymuje pozostałych."""
-    jobs = {orlen.SERIES: update_orlen}
+    jobs = {orlen.SERIES: update_orlen, oilpriceapi.SERIES: update_ara}
     for s in yahoo.TICKERS:
         jobs[s] = lambda s=s: update_yahoo(s)
 

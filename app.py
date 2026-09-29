@@ -72,9 +72,10 @@ def line_chart(df: pd.DataFrame, name: str, unit: str) -> None:
     st.plotly_chart(fig, width="stretch")
 
 
-def series_section(series: str, title: str, unit: str, decimals: int = 2) -> pd.DataFrame:
+def series_section(series: str, title: str, unit: str, decimals: int = 2, show_warning: bool = True) -> pd.DataFrame:
     """Wspólny układ: ostrzeżenie źródła, metric, selektor zakresu, wykres."""
-    source_warning(series)
+    if show_warning:
+        source_warning(series)
     df = load(series)
     if df.empty:
         st.error("Brak danych w bazie dla tej serii.")
@@ -113,8 +114,13 @@ if not orlen_df.empty:
 
 # ---------------------------------------------------------------- 2. ARA
 st.header("2. ARA – ICE Low Sulphur Gasoil")
-st.caption(f"Wpis ręczny raz dziennie z [TradingView ICEEUR:ULS1!]({ara_manual.URL}) (kontrakt ciągły front-month), **USD/t**.")
-with st.form("ara_form", clear_on_submit=True):
+st.caption(
+    "Automatycznie z OilPriceAPI (kod GASOIL_USD, ICE LS Gasoil front-month), **USD/t**, przez `update_data.py`. "
+    "Wartość z dzisiaj może być śródsesyjna – nadpisuje ją kolejne uruchomienie po zamknięciu ICE."
+)
+source_warning(ara_manual.SERIES)
+with st.expander("Wpis ręczny (awaryjnie, gdy API nie działa)"), st.form("ara_form", clear_on_submit=True):
+    st.caption(f"Cena z [TradingView ICEEUR:ULS1!]({ara_manual.URL}). Kolejne pobranie z API nadpisze wpis z tego samego dnia.")
     c1, c2, c3 = st.columns([2, 2, 1])
     ara_day = c1.date_input("Data notowania", value=date.today(), format="YYYY-MM-DD")
     ara_price = c2.number_input("Cena zamknięcia / ostatnia [USD/t]", min_value=0.0, step=0.25, format="%.2f")
@@ -128,9 +134,9 @@ with st.form("ara_form", clear_on_submit=True):
 
 ara_df = load(ara_manual.SERIES)
 if ara_df.empty:
-    st.warning("Brak notowań ARA – brak darmowego źródła automatycznego (Yahoo G=F nie istnieje). Wpisz pierwszą cenę powyżej.")
+    st.error("Brak notowań ARA w bazie. Ustaw OILPRICEAPI_KEY i kliknij „Odśwież dane” albo użyj wpisu ręcznego.")
 else:
-    series_section(ara_manual.SERIES, "ICE LS Gasoil (ARA)", ara_manual.UNIT)
+    series_section(ara_manual.SERIES, "ICE LS Gasoil (ARA)", ara_manual.UNIT, show_warning=False)
     # od kiedy historia jest kompletna (dni robocze pon–pt bez luk; święta ICE liczone jako luki)
     have = set(ara_df["date"].dt.date)
     weekdays = pd.bdate_range(ara_df["date"].min(), ara_df["date"].max()).date
@@ -139,7 +145,7 @@ else:
         (d for d in weekdays if d > missing[-1]), ara_df["date"].max().date()
     )
     st.caption(
-        f"Własne snapshoty od {ara_df['date'].min():%Y-%m-%d} ({len(ara_df)} wpisów). "
+        f"Historia w bazie od {ara_df['date'].min():%Y-%m-%d} ({len(ara_df)} notowań; API daje max 30 dni wstecz, dalej budujemy własne snapshoty). "
         f"Historia kompletna (pon–pt) od **{complete_from}**. Brakujące dni robocze: {len(missing)}"
         + (f" (ostatni: {missing[-1]})" if missing else "")
         + ". Dni świąteczne ICE są liczone jako braki."
