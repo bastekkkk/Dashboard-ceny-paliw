@@ -1,4 +1,5 @@
 """Warstwa wizualna: ciemny motyw, kafelki KPI, karty HTML i wspólny styl wykresów Plotly."""
+import re
 from html import escape
 
 import pandas as pd
@@ -95,6 +96,9 @@ h2, h3 { letter-spacing: -0.01em; }
 .lg .it { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4; color: #D3DFEC; }
 .lg .it svg { flex-shrink: 0; margin-top: 2px; }
 .lg .tips { margin: 4px 0 0; padding: 8px 0 0 18px; border-top: 1px solid #1D416A; }
+.lg dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+.lg dt { font-size: 13px; font-weight: 600; color: #F2F6FA; white-space: nowrap; }
+.lg dd { margin: 0; font-size: 13px; line-height: 1.45; color: #D3DFEC; }
 .lg .tips li { margin: 0 0 4px; font-size: 13px; line-height: 1.45; color: #A9BFD6; }
 @media (max-width: 900px) { .explain { grid-template-columns: 1fr; } }
 @media (max-width: 640px) {
@@ -240,3 +244,14 @@ def trend_table(df: pd.DataFrame, trend: dict[str, tuple[int, str]], fmt: dict[s
     formatters = {c: (lambda v, d=d, sfx=sfx: _arrow(v, d, sfx)) for c, (d, sfx) in trend.items()}
     formatters.update(fmt or {})
     return df.style.apply(colors, subset=list(trend)).format(formatters, na_rep="—")
+
+
+def table_legend(columns: dict[str, str], tips: list[str] = ()) -> dict:
+    """Objaśnienie kolumn tabeli pod przyciskiem (jak legenda wykresu) + te same opisy jako dymek ⓘ w nagłówkach.
+    Zwraca column_config do st.dataframe."""
+    with st.popover("Co oznaczają kolumny", icon=":material/help:"):
+        rows = "".join(f"<dt>{escape(c)}</dt><dd>{t}</dd>" for c, t in columns.items())
+        tips_html = f'<ul class="tips">{"".join(f"<li>{t}</li>" for t in tips)}</ul>' if tips else ""
+        html(f'<div class="lg" style="max-width:640px"><dl>{rows}</dl>{tips_html}</div>')
+    strip = lambda t: re.sub(r"<[^>]+>", "", t)  # noqa: E731 – dymek w nagłówku to czysty tekst
+    return {c: st.column_config.Column(help=strip(t)) for c, t in columns.items()}

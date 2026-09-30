@@ -478,11 +478,24 @@ with t_orlen:
             "Min [PLN/m³]": arch["min"].round(0),
             "Max [PLN/m³]": arch["max"].round(0),
         }).iloc[::-1]
+        cols_help = ui.table_legend({
+            "Miesiąc": "Miesiąc kalendarzowy. „(w toku)” = bieżący miesiąc, liczony do dziś – wynik jeszcze się zmieni.",
+            "Średnia [PLN/m³]": "Średnia cena hurtowa Ekodiesel ORLEN w miesiącu, netto (bez VAT), za 1 m³ = 1000 l. "
+                                "Ważona dniami: każdy dzień liczy się po cenie, która wtedy obowiązywała.",
+            "Średnia [PLN/l]": "Ta sama średnia za 1 litr (PLN/m³ ÷ 1000).",
+            "Zmiana m/m [PLN/m³]": "m/m = miesiąc do miesiąca. O ile złotych na każde 1000 l średnia była wyższa (▲) "
+                                   "lub niższa (▼) niż w poprzednim miesiącu. Przykład: ▲ +724 = 1000 l droższe średnio "
+                                   "o 724 zł, czyli o ok. 0,72 zł na litrze.",
+            "Zmiana m/m [%]": "Ta sama zmiana w procentach. Przykład: ▲ +11,1 = średnia wyższa o 11,1% niż miesiąc wcześniej.",
+            "Min [PLN/m³]": "Najniższa cena hurtowa, która obowiązywała w tym miesiącu.",
+            "Max [PLN/m³]": "Najwyższa cena hurtowa, która obowiązywała w tym miesiącu.",
+        }, [ui.TREND_NOTE, "Szybki przelicznik: zmiana w PLN/m³ ÷ 1000 = zmiana w zł na litrze; "
+                           "× liczba m³ w miesiącu = wpływ na koszt paliwa floty."])
         st.dataframe(
             ui.trend_table(table, {"Zmiana m/m [PLN/m³]": (0, ""), "Zmiana m/m [%]": (1, "")},
                            {"Średnia [PLN/m³]": "{:.0f}", "Średnia [PLN/l]": "{:.3f}",
                             "Min [PLN/m³]": "{:.0f}", "Max [PLN/m³]": "{:.0f}"}),
-            hide_index=True, width="stretch", height=38 + 35 * min(len(table), 12),
+            hide_index=True, width="stretch", height=38 + 35 * min(len(table), 12), column_config=cols_help,
         )
         st.caption(ui.TREND_NOTE)
         st.download_button(
@@ -854,12 +867,23 @@ with t_eu:
                 f"vs Polska [{eu_unit}]": (ranked - pl).round(eu_dec).values,
                 f"vs Polska na 1000 l [{eu_unit[:3]}]": ((ranked - pl) * 1000).round(0).values,
             })
+            cols_help = ui.table_legend({
+                "Kraj": "Kraj UE-27 z biuletynu KE.",
+                f"Cena [{eu_unit}]": "Średnia krajowa cena oleju napędowego na stacjach z ostatniego biuletynu, za 1 litr "
+                                     "(z podatkami lub bez – wg przełącznika „Cena” wyżej).",
+                f"Zmiana t/t [{eu_unit}]": "t/t = tydzień do tygodnia. O ile litr podrożał (▲) lub potaniał (▼) "
+                                           "względem poprzedniego biuletynu.",
+                f"vs Polska [{eu_unit}]": "Różnica ceny litra względem Polski. ▼ = w tym kraju taniej niż w PL, ▲ = drożej.",
+                f"vs Polska na 1000 l [{eu_unit[:3]}]": "Ta sama różnica na 1000 l: ile zaoszczędzisz (▼) lub dopłacisz (▲), "
+                                                        "tankując 1000 l w tym kraju zamiast w Polsce. Przykład: ▼ −124 = "
+                                                        "1000 l taniej o 124.",
+            }, [ui.TREND_NOTE])
             st.dataframe(ui.trend_table(
                 table,
                 {f"Zmiana t/t [{eu_unit}]": (eu_dec, ""), f"vs Polska [{eu_unit}]": (eu_dec, ""),
                  f"vs Polska na 1000 l [{eu_unit[:3]}]": (0, "")},
                 {f"Cena [{eu_unit}]": f"{{:.{eu_dec}f}}"},
-            ), hide_index=True, width="stretch")
+            ), hide_index=True, width="stretch", column_config=cols_help)
             st.caption(ui.TREND_NOTE + " „vs Polska na 1000 l” – ile więcej (+) lub mniej (−) zapłacisz za 1000 l w danym kraju niż w Polsce "
                        "przy średniej krajowej cenie.")
 
@@ -1003,10 +1027,21 @@ with t_mkt:
                          legend=dict(orientation="h", y=1.08))
             st.plotly_chart(fig, width="stretch")
             st.caption("Każda seria znormalizowana do 100 na swoim pierwszym notowaniu w zakresie. W dymku wartość w oryginalnej jednostce.")
+            cols_help = ui.table_legend({
+                "Seria": "Instrument i jego źródło (Yahoo Finance).",
+                "Jednostka": "W czym podana jest cena: USD za uncję trojańską (złoto, srebro) lub PLN za 1 USD.",
+                "Start": "Pierwsze notowanie w wybranym zakresie dat (w nawiasie data).",
+                "Koniec": "Ostatnie notowanie w wybranym zakresie dat.",
+                "Zmiana": "O ile procent Koniec jest wyższy (▲) lub niższy (▼) od Startu.",
+                "Min": "Najniższe notowanie w zakresie.",
+                "Max": "Najwyższe notowanie w zakresie.",
+                "Rozpiętość max/min": "O ile % Max był wyższy od Min – miara wahań w zakresie. Im więcej, tym bardziej "
+                                      "niestabilny rynek.",
+            })
             # złoto/srebro: wzrost = korzystny (turkus); USD/PLN: wzrost = droższy dolar i ARA (czerwony)
             st.dataframe(ui.trend_table(pd.DataFrame(rows), {"Zmiana": (2, "%")},
                                         good_up=[r["Seria"] != yahoo.TICKERS["usdpln"][2] for r in rows]),
-                         hide_index=True, width="stretch")
+                         hide_index=True, width="stretch", column_config=cols_help)
             st.caption("▲ wzrost · ▼ spadek w zakresie. Złoto i srebro: wzrost na turkusowo; "
                        "USD/PLN: wzrost na czerwono (droższy dolar = droższa ARA w PLN).")
         else:
