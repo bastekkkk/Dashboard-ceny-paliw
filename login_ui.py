@@ -134,3 +134,16 @@ def error(msg: str) -> None:
 def footer() -> None:
     _html(f'<div class="lnote">{LOCK}<span>Połączenie szyfrowane · limit prób logowania</span></div>'
           f'<div class="lnote author-m"><span>Autor aplikacji: <b>{AUTHOR}</b></span></div>')
+
+
+def loading(placeholder) -> None:
+    """Zastępuje ekran logowania (st.empty) komunikatem na czas pierwszego wczytania dashboardu."""
+    placeholder.markdown(
+        '<div style="min-height:60vh;display:flex;align-items:center;justify-content:center;gap:12px;'
+        "font-family:Barlow,system-ui,sans-serif;font-size:18px;color:#A9BFD6\">"
+        '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" '
+        'stroke="#E2322A" stroke-width="3" stroke-dasharray="42 100" stroke-linecap="round">'
+        '<animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.9s" '
+        'repeatCount="indefinite"/></circle></svg>Zalogowano – wczytuję dane…</div>',
+        unsafe_allow_html=True,
+    )

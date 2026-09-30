@@ -83,6 +83,15 @@ def require_password() -> None:
     if st.session_state.get("auth_ok"):
         return
     stored = _stored_hash()
+    # cały ekran logowania w jednym kontenerze: po zalogowaniu czyścimy go przed rerunem, inaczej dashboard
+    # rysuje się w miejscu elementów logowania, a ich resztki (już bez stylu logowania) rozjeżdżają układ
+    root = st.empty()
+    with root.container():
+        _login_screen(root, stored)
+    st.stop()
+
+
+def _login_screen(root, stored: str | None) -> None:
     left, _, right = st.columns([1.5, 0.08, 1], vertical_alignment="top")
     with left:
         login_ui.hero()
@@ -107,6 +116,7 @@ def require_password() -> None:
             elif verify(pwd, stored):
                 st.session_state["auth_ok"] = True
                 st.session_state.pop("auth_attempts", None)
+                login_ui.loading(root)  # podmienia cały ekran logowania na komunikat do czasu wczytania dashboardu
                 st.rerun()
             else:
                 st.session_state["auth_attempts"] = attempts + 1
@@ -123,7 +133,6 @@ def require_password() -> None:
                     f"Pozostały {left_n} próby." if left_n <= 4 else f"Pozostało {left_n} prób."
                 ))
         login_ui.footer()
-    st.stop()
 
 
 if __name__ == "__main__":
