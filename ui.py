@@ -1,6 +1,7 @@
 """Warstwa wizualna: ciemny motyw, kafelki KPI, karty HTML i wspólny styl wykresów Plotly."""
 from html import escape
 
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -210,3 +211,32 @@ def legend(items: list[tuple[str, str, str]], tips: list[str] = ()) -> None:
         rows = "".join(f'<div class="it">{swatch(k, c)}<span>{t}</span></div>' for k, c, t in items)
         tips_html = f'<ul class="tips">{"".join(f"<li>{t}</li>" for t in tips)}</ul>' if tips else ""
         html(f'<div class="lg">{rows}{tips_html}</div>')
+
+
+TREND_NOTE = ("▲ wzrost · ▼ spadek · ● bez zmian – czerwony = drożej / niekorzystnie, "
+              "turkusowy = taniej / korzystnie.")
+
+
+def _arrow(v: float, decimals: int, suffix: str) -> str:
+    if pd.isna(v):
+        return "—"
+    if round(v, decimals) == 0:
+        return f"● {0:.{decimals}f}{suffix}"
+    return f"{'▲' if v > 0 else '▼'} {v:+.{decimals}f}{suffix}"
+
+
+def trend_table(df: pd.DataFrame, trend: dict[str, tuple[int, str]], fmt: dict[str, str] | None = None,
+                good_up=None):
+    """Styler do st.dataframe: kolumny zmian z ikoną ▲/▼/● i kolorem (wzrost ceny = czerwony, jak na kafelkach).
+    trend: kolumna -> (miejsca po przecinku, dopisek); fmt: format pozostałych kolumn liczbowych;
+    good_up: lista bool per wiersz – True, gdy wzrost jest korzystny (np. złoto). Wartości zostają liczbami (sortowanie)."""
+    good = [False] * len(df) if good_up is None else list(good_up)
+
+    def colors(col: pd.Series) -> list[str]:
+        d = trend[col.name][0]
+        return [f"color: {C['muted']}" if pd.isna(v) or round(v, d) == 0
+                else f"color: {C['down'] if (v > 0) == g else C['up']}" for v, g in zip(col, good)]
+
+    formatters = {c: (lambda v, d=d, sfx=sfx: _arrow(v, d, sfx)) for c, (d, sfx) in trend.items()}
+    formatters.update(fmt or {})
+    return df.style.apply(colors, subset=list(trend)).format(formatters, na_rep="—")

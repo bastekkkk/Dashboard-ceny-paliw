@@ -478,12 +478,13 @@ with t_orlen:
             "Min [PLN/m³]": arch["min"].round(0),
             "Max [PLN/m³]": arch["max"].round(0),
         }).iloc[::-1]
-        nc = st.column_config.NumberColumn
-        st.dataframe(table, hide_index=True, width="stretch", height=38 + 35 * min(len(table), 12), column_config={
-            "Średnia [PLN/m³]": nc(format="%.0f"), "Średnia [PLN/l]": nc(format="%.3f"),
-            "Zmiana m/m [PLN/m³]": nc(format="%+.0f"), "Zmiana m/m [%]": nc(format="%+.1f"),
-            "Min [PLN/m³]": nc(format="%.0f"), "Max [PLN/m³]": nc(format="%.0f"),
-        })
+        st.dataframe(
+            ui.trend_table(table, {"Zmiana m/m [PLN/m³]": (0, ""), "Zmiana m/m [%]": (1, "")},
+                           {"Średnia [PLN/m³]": "{:.0f}", "Średnia [PLN/l]": "{:.3f}",
+                            "Min [PLN/m³]": "{:.0f}", "Max [PLN/m³]": "{:.0f}"}),
+            hide_index=True, width="stretch", height=38 + 35 * min(len(table), 12),
+        )
+        st.caption(ui.TREND_NOTE)
         st.download_button(
             "Pobierz archiwum (CSV do Excela)", icon=":material/download:",
             data=table.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
@@ -853,8 +854,13 @@ with t_eu:
                 f"vs Polska [{eu_unit}]": (ranked - pl).round(eu_dec).values,
                 f"vs Polska na 1000 l [{eu_unit[:3]}]": ((ranked - pl) * 1000).round(0).values,
             })
-            st.dataframe(table, hide_index=True, width="stretch")
-            st.caption("„vs Polska na 1000 l” – ile więcej (+) lub mniej (−) zapłacisz za 1000 l w danym kraju niż w Polsce "
+            st.dataframe(ui.trend_table(
+                table,
+                {f"Zmiana t/t [{eu_unit}]": (eu_dec, ""), f"vs Polska [{eu_unit}]": (eu_dec, ""),
+                 f"vs Polska na 1000 l [{eu_unit[:3]}]": (0, "")},
+                {f"Cena [{eu_unit}]": f"{{:.{eu_dec}f}}"},
+            ), hide_index=True, width="stretch")
+            st.caption(ui.TREND_NOTE + " „vs Polska na 1000 l” – ile więcej (+) lub mniej (−) zapłacisz za 1000 l w danym kraju niż w Polsce "
                        "przy średniej krajowej cenie.")
 
         if tax_day is not None:
@@ -975,7 +981,7 @@ with t_mkt:
                 "Jednostka": unit,
                 "Start": f"{first['value']:,.4f} ({first['date']:%Y-%m-%d})",
                 "Koniec": f"{last['value']:,.4f} ({last['date']:%Y-%m-%d})",
-                "Zmiana": f"{last['value'] / first['value'] - 1:+.2%}",
+                "Zmiana": (last["value"] / first["value"] - 1) * 100,
                 "Min": f"{part['value'].min():,.4f}",
                 "Max": f"{part['value'].max():,.4f}",
                 "Rozpiętość max/min": f"{part['value'].max() / part['value'].min() - 1:.2%}",
@@ -997,7 +1003,12 @@ with t_mkt:
                          legend=dict(orientation="h", y=1.08))
             st.plotly_chart(fig, width="stretch")
             st.caption("Każda seria znormalizowana do 100 na swoim pierwszym notowaniu w zakresie. W dymku wartość w oryginalnej jednostce.")
-            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+            # złoto/srebro: wzrost = korzystny (turkus); USD/PLN: wzrost = droższy dolar i ARA (czerwony)
+            st.dataframe(ui.trend_table(pd.DataFrame(rows), {"Zmiana": (2, "%")},
+                                        good_up=[r["Seria"] != yahoo.TICKERS["usdpln"][2] for r in rows]),
+                         hide_index=True, width="stretch")
+            st.caption("▲ wzrost · ▼ spadek w zakresie. Złoto i srebro: wzrost na turkusowo; "
+                       "USD/PLN: wzrost na czerwono (droższy dolar = droższa ARA w PLN).")
         else:
             st.info("Brak notowań w wybranym zakresie.")
 
