@@ -8,8 +8,8 @@ import yfinance as yf
 TICKERS = {
     "gold": ("GC=F", "USD/oz", "Złoto (COMEX GC=F, kontrakt ciągły)"),
     "silver": ("SI=F", "USD/oz", "Srebro (COMEX SI=F, kontrakt ciągły)"),
-    "brent": ("BZ=F", "USD/bbl", "Ropa Brent (ICE BZ=F, kontrakt ciągły)"),
     "usdpln": ("USDPLN=X", "PLN za 1 USD", "USD/PLN (USDPLN=X)"),
+    "brent": ("BZ=F", "USD/bbl", "Ropa Brent (ICE BZ=F, kontrakt ciągły)"),
     "jpypln": ("JPYPLN=X", "PLN za 1 JPY", "JPY/PLN (JPYPLN=X)"),
 }
 # wzrost niekorzystny (czerwony): droższa waluta obca i droższa ropa; złoto/srebro – wzrost korzystny
