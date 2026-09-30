@@ -271,8 +271,8 @@ with k4:
                f"{last['date']:%d.%m.%Y} · tańszy dolar = tańsza ARA w PLN{note}")
 
 st.write("")
-t_over, t_orlen, t_ara, t_prem, t_eu, t_mkt = st.tabs(
-    ["Przegląd", "Hurt ORLEN", "ARA", "Premia", "Stacje UE", "Rynki"]
+t_over, t_orlen, t_ara, t_prem, t_eu, t_mkt, t_plan = st.tabs(
+    ["Przegląd", "Hurt ORLEN", "ARA", "Premia", "Stacje UE", "Rynki", "Plan tankowania"]
 )
 
 # ================================================================ PRZEGLĄD
@@ -343,11 +343,10 @@ with t_over:
             st.caption(f"Premia w ostatnich {win_days} dniach; przerywana = średnia {ui.num(avg_p)} PLN/m³. "
                        "Jak czytać premię – zakładka **Premia**.")
 
-    c_rank, c_plan = st.columns([2.4, 1], gap="medium")
     eu_countries = [] if eu_last_day is None else [
         c for c in eu_now.loc[eu_last_day].dropna().index if c not in wob.AVERAGES
     ]
-    with c_rank, st.container(border=True):
+    with st.container(border=True):
         if not eu_countries or "PL" not in eu_countries:
             ui.card_title("Olej napędowy na stacjach – gdzie tankować")
             st.info("Brak danych biuletynu KE w bazie. Kliknij „Odśwież dane”.")
@@ -378,61 +377,8 @@ with t_over:
                 )
             ui.html("".join(rows) + "</div>")
             st.caption(f"Słupki od {ui.num(lo, 1)} EUR/l – porównuj różnice, nie długości od zera. "
-                       "„vs PL” = ile więcej (+) lub mniej (−) zapłacisz za 1000 l niż w Polsce przy średniej krajowej cenie.")
-
-    with c_plan, st.container(border=True):
-        ui.card_title("Plan tankowania na trasie", "ile zaoszczędzisz, tankując w najtańszym kraju")
-        if not eu_countries or "PL" not in eu_countries:
-            st.info("Potrzebne ceny z biuletynu KE.")
-        else:
-            now_eu = eu_now.loc[eu_last_day]
-            opts = sorted(eu_countries, key=lambda c: wob.COUNTRIES.get(c, c))
-            fmt_c = lambda c: f"{wob.COUNTRIES.get(c, c)} ({ui.num(now_eu[c], 3)})"  # noqa: E731
-            home = st.selectbox("Tankujesz przed wyjazdem w", opts, index=opts.index("PL"), format_func=fmt_c,
-                                key="plan_home")
-            route = st.multiselect("Kraje na trasie", [c for c in opts if c != home],
-                                   default=[c for c in ["DE", "NL"] if c in opts and c != home],
-                                   format_func=fmt_c, key="plan_route")
-            p1, p2, p3 = st.columns(3)
-            tank = p1.number_input("Bak [l]", min_value=50, max_value=2000, value=800, step=50, key="plan_tank")
-            km = p2.number_input("Trasa [km]", min_value=0, max_value=10000, value=900, step=50, key="plan_km")
-            cons = p3.number_input("l/100 km", min_value=5.0, max_value=80.0, value=29.0, step=0.5, format="%.1f", key="plan_cons")
-
-            stops = [home, *route]
-            chips = "".join(
-                f'<span class="num" style="background:{"#0F3A3A" if now_eu[c] <= now_eu[home] else "#3A1D26"};'
-                f'color:{"#BDF2E5" if now_eu[c] <= now_eu[home] else "#FFC2BA"}">{c} {ui.num(now_eu[c], 3)}</span>'
-                for c in stops
-            )
-            ui.html(f'<div class="stops">{chips}<span style="color:{C["muted"]}">EUR/l</span></div>')
-            if route:
-                cheapest = min(stops, key=lambda c: now_eu[c])
-                name = wob.COUNTRIES.get(cheapest, cheapest)
-                if cheapest == home:
-                    alt = min(route, key=lambda c: now_eu[c])
-                    saving = (now_eu[alt] - now_eu[home]) * tank
-                    ui.html(f'<div class="reco"><span class="t">Rekomendacja</span>'
-                            f'<span class="m">Zatankuj do pełna przed wyjazdem ({name}). Na trasie tankuj tylko tyle, ile trzeba.</span>'
-                            f'<div class="s"><span class="num">{ui.num(saving)} €</span>'
-                            f"<span>min. oszczędność vs {wob.COUNTRIES.get(alt, alt)} ({ui.num(tank)} l)</span></div></div>")
-                else:
-                    saving = (now_eu[home] - now_eu[cheapest]) * tank
-                    ui.html(f'<div class="reco warn"><span class="t">Tańsze paliwo po drodze</span>'
-                            f'<span class="m">Przed wyjazdem zatankuj tylko na dojazd – do pełna tankuj po drodze: '
-                            f"{name} ({ui.num(now_eu[cheapest], 3)} EUR/l).</span>"
-                            f'<div class="s"><span class="num">{ui.num(saving)} €</span>'
-                            f"<span>oszczędności na {ui.num(tank)} l</span></div></div>")
-            else:
-                st.caption("Dodaj kraje na trasie, żeby porównać ceny.")
-            need = km * cons / 100
-            reach = tank / cons * 100
-            ui.html(f'<div class="fresh num" style="min-height:0;justify-content:space-between">'
-                    f"<span>Potrzeba ≈ {ui.num(need)} l</span><span>Zasięg ≈ {ui.num(reach)} km</span></div>")
-            stops = max(0, math.ceil(need / tank) - 1)  # pełny bak na start + tankowania po drodze
-            if stops:
-                st.caption(f"Tankowania po drodze: co najmniej {stops} (przy pełnym baku na starcie).")
-            st.caption("Średnie krajowe ceny z podatkami z biuletynu KE. Ceny na kartach flotowych i przy autostradach "
-                       "oraz odliczenie VAT mogą zmienić wynik.")
+                       "„vs PL” = ile więcej (+) lub mniej (−) zapłacisz za 1000 l niż w Polsce przy średniej krajowej cenie. "
+                       "Oszczędność na konkretnej trasie policzysz w zakładce **Plan tankowania**.")
 
 # ================================================================ HURT ORLEN
 with t_orlen:
@@ -901,3 +847,65 @@ with t_mkt:
 
 st.divider()
 st.caption(f"Autor aplikacji: **{login_ui.AUTHOR}** · ID Logistics – narzędzie wewnętrzne")
+
+# ================================================================ PLAN TANKOWANIA
+with t_plan:
+    st.subheader("Plan tankowania na trasie")
+    st.caption("Ile zaoszczędzisz, tankując w najtańszym kraju na trasie. Ceny: średnie krajowe z podatkami "
+               + (f"z biuletynu KE z {eu_last_day:%d.%m.%Y}." if eu_last_day is not None else "z biuletynu KE."))
+    if not eu_countries or "PL" not in eu_countries:
+        st.info("Potrzebne ceny z biuletynu KE. Kliknij „Odśwież dane”.")
+    else:
+        now_eu = eu_now.loc[eu_last_day]
+        opts = sorted(eu_countries, key=lambda c: wob.COUNTRIES.get(c, c))
+        fmt_c = lambda c: f"{wob.COUNTRIES.get(c, c)} ({ui.num(now_eu[c], 3)})"  # noqa: E731
+        c_in, c_out = st.columns([1, 1.25], gap="medium")
+        with c_in, st.container(border=True):
+            ui.card_title("Trasa i pojazd")
+            home = st.selectbox("Tankujesz przed wyjazdem w", opts, index=opts.index("PL"), format_func=fmt_c,
+                                key="plan_home")
+            route = st.multiselect("Kraje na trasie", [c for c in opts if c != home],
+                                   default=[c for c in ["DE", "NL"] if c in opts and c != home],
+                                   format_func=fmt_c, key="plan_route")
+            p1, p2, p3 = st.columns(3)
+            tank = p1.number_input("Bak [l]", min_value=50, max_value=2000, value=800, step=50, key="plan_tank")
+            km = p2.number_input("Trasa [km]", min_value=0, max_value=10000, value=900, step=50, key="plan_km")
+            cons = p3.number_input("l/100 km", min_value=5.0, max_value=80.0, value=29.0, step=0.5, format="%.1f",
+                                   key="plan_cons")
+        with c_out, st.container(border=True):
+            ui.card_title("Wynik")
+            stops = [home, *route]
+            chips = "".join(
+                f'<span class="num" style="background:{"#0F3A3A" if now_eu[c] <= now_eu[home] else "#3A1D26"};'
+                f'color:{"#BDF2E5" if now_eu[c] <= now_eu[home] else "#FFC2BA"}">{c} {ui.num(now_eu[c], 3)}</span>'
+                for c in stops
+            )
+            ui.html(f'<div class="stops">{chips}<span style="color:{C["muted"]}">EUR/l</span></div>')
+            if route:
+                cheapest = min(stops, key=lambda c: now_eu[c])
+                name = wob.COUNTRIES.get(cheapest, cheapest)
+                if cheapest == home:
+                    alt = min(route, key=lambda c: now_eu[c])
+                    saving = (now_eu[alt] - now_eu[home]) * tank
+                    ui.html(f'<div class="reco"><span class="t">Rekomendacja</span>'
+                            f'<span class="m">Zatankuj do pełna przed wyjazdem ({name}). Na trasie tankuj tylko tyle, ile trzeba.</span>'
+                            f'<div class="s"><span class="num">{ui.num(saving)} €</span>'
+                            f"<span>min. oszczędność vs {wob.COUNTRIES.get(alt, alt)} ({ui.num(tank)} l)</span></div></div>")
+                else:
+                    saving = (now_eu[home] - now_eu[cheapest]) * tank
+                    ui.html(f'<div class="reco warn"><span class="t">Tańsze paliwo po drodze</span>'
+                            f'<span class="m">Przed wyjazdem zatankuj tylko na dojazd – do pełna tankuj po drodze: '
+                            f"{name} ({ui.num(now_eu[cheapest], 3)} EUR/l).</span>"
+                            f'<div class="s"><span class="num">{ui.num(saving)} €</span>'
+                            f"<span>oszczędności na {ui.num(tank)} l</span></div></div>")
+            else:
+                st.caption("Dodaj kraje na trasie, żeby porównać ceny.")
+            need = km * cons / 100
+            reach = tank / cons * 100
+            ui.html(f'<div class="fresh num" style="min-height:0;justify-content:space-between">'
+                    f"<span>Potrzeba ≈ {ui.num(need)} l</span><span>Zasięg ≈ {ui.num(reach)} km</span></div>")
+            n_stops = max(0, math.ceil(need / tank) - 1)  # pełny bak na start + tankowania po drodze
+            if n_stops:
+                st.caption(f"Tankowania po drodze: co najmniej {n_stops} (przy pełnym baku na starcie).")
+            st.caption("Średnie krajowe ceny z podatkami z biuletynu KE. Ceny na kartach flotowych i przy autostradach "
+                       "oraz odliczenie VAT mogą zmienić wynik.")
