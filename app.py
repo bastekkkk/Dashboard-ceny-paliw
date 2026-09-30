@@ -178,7 +178,7 @@ eu_now = load_eu("brutto", False)
 hist = premium_history(ara_df, orlen_df, fx_df) if not (ara_df.empty or orlen_df.empty or fx_df.empty) else pd.DataFrame()
 
 # ---------------------------------------------------------------- nagłówek
-h_brand, h_fresh, h_btn = st.columns([2.2, 5.3, 1.5], vertical_alignment="center")
+h_brand, h_fresh, h_btn, h_out = st.columns([2.2, 4.4, 1.5, 1.1], vertical_alignment="center")
 h_brand.markdown(
     f'<div class="brand"><span class="chip"><img src="{login_ui.logo_src()}" alt="ID Logistics"></span>'
     '<div><b>Ceny paliw</b><span>monitoring · Polska i Europa</span></div></div>',
@@ -212,6 +212,9 @@ if h_btn.button("Odśwież dane", type="primary", icon=":material/refresh:", wid
                 help="Uruchamia ten sam kod co `python update_data.py`. Automatycznie: pon–sob o 18:30."):
     with st.spinner("Pobieram dane…"):
         st.session_state["refresh_results"] = scheduler.run_now()
+    st.rerun()
+if h_out.button("Wyloguj", icon=":material/logout:", width="stretch", help="Zakończ sesję – wymaga ponownego podania hasła."):
+    st.session_state.clear()
     st.rerun()
 
 if results := st.session_state.pop("refresh_results", None):

@@ -34,16 +34,17 @@ h2, h3 { letter-spacing: -0.01em; }
 .fresh { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; color: #A9BFD6; min-height: 44px; }
 .fresh i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .fresh .num { color: #F2F6FA; }
-.kpi { background: #0B2747; border: 1px solid #1D416A; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; height: 100%; box-sizing: border-box; }
+.kpi { background: #0B2747; border: 1px solid #1D416A; border-radius: 16px; padding: 16px 20px; display: flex; flex-direction: column; gap: 6px; height: 100%; min-height: 172px; box-sizing: border-box; min-width: 0; }
 .kpi.accent { background: #0B2747; border: 1.5px solid #E2322A; }
-.kpi .lbl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #A9BFD6; }
-.kpi .lbl i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-.kpi .row { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
-.kpi .val { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; color: #F2F6FA; line-height: 1.15; }
+.kpi .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 30px; }
+.kpi .top svg { flex: 0 100 110px; min-width: 36px; height: 30px; }
+.kpi .lbl { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #A9BFD6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .lbl i { flex-shrink: 0; width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.kpi .main { display: flex; align-items: baseline; flex-wrap: nowrap; white-space: nowrap; min-width: 0; }
+.kpi .val { font-size: clamp(22px, 2.1vw, 32px); font-weight: 600; letter-spacing: -0.02em; color: #F2F6FA; line-height: 1.15; white-space: nowrap; }
 .kpi .unit { font-size: 13px; color: #A9BFD6; margin-left: 6px; }
 .kpi .delta { font-size: 13px; white-space: nowrap; }
-.kpi .row svg { flex-shrink: 1; min-width: 60px; }
-.kpi .foot { font-size: 12px; color: #86A0BE; }
+.kpi .foot { margin-top: auto; font-size: 12px; line-height: 1.4; color: #86A0BE; }
 .kpi.empty .val { color: #86A0BE; font-size: 20px; }
 .signal { display: flex; flex-direction: column; gap: 10px; }
 .signal .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -87,6 +88,7 @@ h2, h3 { letter-spacing: -0.01em; }
 .scale i { flex-shrink: 0; margin-top: 3px; width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 @media (max-width: 900px) { .explain { grid-template-columns: 1fr; } }
 @media (max-width: 640px) {
+  .kpi { min-height: 0; }
   .rank .r { grid-template-columns: 1fr 56px 90px; }
   .rank .track { display: none; }
   .kpi .val { font-size: 24px; }
@@ -106,19 +108,19 @@ def html(markup: str) -> None:
 
 def num(value: float, decimals: int = 0, sign: bool = False) -> str:
     """Format PL: spacja tysięcy, przecinek dziesiętny, minus typograficzny."""
-    s = f"{value:{'+' if sign else ''},.{decimals}f}".replace(",", " ").replace(".", ",")
+    s = f"{value:{'+' if sign else ''},.{decimals}f}".replace(",", "\u00a0").replace(".", ",")  # twarda spacja: liczba się nie łamie
     return s.replace("-", "−")
 
 
-def sparkline(values, color: str, w: int = 120, h: int = 36) -> str:
+def sparkline(values, color: str, w: int = 110, h: int = 30) -> str:
     v = [float(x) for x in values]
     if len(v) < 2:
         return ""
     lo, hi = min(v), max(v)
     hi = hi if hi > lo else lo + 1
     pts = " ".join(f"{i * w / (len(v) - 1):.1f},{h - 3 - (x - lo) / (hi - lo) * (h - 6):.1f}" for i, x in enumerate(v))
-    return (f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" aria-hidden="true">'
-            f'<polyline points="{pts}" fill="none" stroke="{color}" stroke-width="1.8" stroke-linejoin="round"/></svg>')
+    return (f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" preserveAspectRatio="none" aria-hidden="true">'
+            f'<polyline points="{pts}" fill="none" stroke="{color}" stroke-width="1.8" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>')
 
 
 def delta_html(diff: float, pct: float | None, decimals: int, suffix: str = "d/d") -> str:
@@ -136,15 +138,16 @@ def kpi(label: str, value: str, unit: str, delta: str = "", spark: str = "", foo
     dot_html = f'<i style="background:{dot}"></i>' if dot else ""
     html(f"""
     <div class="kpi{' accent' if accent else ''}">
-      <div class="lbl">{dot_html}{escape(label)}</div>
-      <div class="row"><div><div><span class="val num">{value}</span><span class="unit">{escape(unit)}</span></div>{delta}</div>{spark}</div>
+      <div class="top"><div class="lbl">{dot_html}{escape(label)}</div>{spark}</div>
+      <div class="main"><span class="val num">{value}</span><span class="unit">{escape(unit)}</span></div>
+      {delta}
       <div class="foot">{foot}</div>
     </div>""")
 
 
 def kpi_empty(label: str, msg: str, dot: str | None = None) -> None:
     dot_html = f'<i style="background:{dot}"></i>' if dot else ""
-    html(f'<div class="kpi empty"><div class="lbl">{dot_html}{escape(label)}</div>'
+    html(f'<div class="kpi empty"><div class="top"><div class="lbl">{dot_html}{escape(label)}</div></div>'
          f'<div class="val">brak danych</div><div class="foot">{escape(msg)}</div></div>')
 
 
