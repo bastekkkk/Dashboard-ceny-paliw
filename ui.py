@@ -25,6 +25,10 @@ h2, h3 { letter-spacing: -0.01em; }
 .stTabs [data-baseweb="tab-list"] { gap: 4px; }
 .stTabs [data-baseweb="tab"] { height: 44px; padding: 0 16px; border-radius: 8px 8px 0 0; }
 .stTabs [data-baseweb="tab"] p { font-size: 15px; font-weight: 500; }
+/* ostatnia zakładka (Plan tankowania) dosunięta do prawej, oddzielona od zakładek z danymi */
+.stTabs [role="tablist"], .stTabs [data-baseweb="tab-list"] { width: 100%; }
+.stTabs [role="tablist"] > [role="tab"]:last-child,
+.stTabs [data-baseweb="tab-list"] > [data-baseweb="tab"]:last-of-type { margin-left: auto; border-left: 1px solid #1D416A; padding-left: 20px; }
 .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand .chip { background: #FFFFFF; border-radius: 10px; padding: 6px 10px; display: flex; align-items: center; }
