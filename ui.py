@@ -90,6 +90,11 @@ h2, h3 { letter-spacing: -0.01em; }
 .scale { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .scale div { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4; color: #D3DFEC; }
 .scale i { flex-shrink: 0; margin-top: 3px; width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.lg { display: flex; flex-direction: column; gap: 8px; max-width: 440px; }
+.lg .it { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4; color: #D3DFEC; }
+.lg .it svg { flex-shrink: 0; margin-top: 2px; }
+.lg .tips { margin: 4px 0 0; padding: 8px 0 0 18px; border-top: 1px solid #1D416A; }
+.lg .tips li { margin: 0 0 4px; font-size: 13px; line-height: 1.45; color: #A9BFD6; }
 @media (max-width: 900px) { .explain { grid-template-columns: 1fr; } }
 @media (max-width: 640px) {
   .kpi { min-height: 0; }
@@ -173,3 +178,35 @@ def style_fig(fig: go.Figure, height: int = 380, **layout) -> go.Figure:
     fig.update_yaxes(**axis)
     fig.update_layout(**layout)
     return fig
+
+
+def swatch(kind: str, color: str) -> str:
+    """Mini-znacznik do legendy, rysowany tak jak element na wykresie."""
+    w, h = 28, 16
+
+    def line(dash: str = "none") -> str:
+        return f'<line x1="2" y1="8" x2="26" y2="8" stroke="{color}" stroke-width="2.4" stroke-dasharray="{dash}"/>'
+
+    body = {
+        "line": line(),
+        "dash": line("5 3"),
+        "dot": line("1.5 3"),
+        "step": f'<polyline points="2,12 10,12 10,4 19,4 19,9 26,9" fill="none" stroke="{color}" stroke-width="2.2"/>',
+        "area": f'<rect x="2" y="3" width="24" height="10" rx="2" fill="{color}" fill-opacity="0.3"/>',
+        "bar": f'<rect x="8" y="2" width="12" height="12" rx="2" fill="{color}"/>',
+        "bar-faded": f'<rect x="8" y="2" width="12" height="12" rx="2" fill="{color}" fill-opacity="0.45"/>',
+        "marker": f'<circle cx="14" cy="8" r="4.5" fill="{color}"/>',
+        "marker-lg": f'<circle cx="14" cy="8" r="6.5" fill="{color}"/>',
+        "line-markers": line() + f'<circle cx="14" cy="8" r="3.5" fill="{color}"/>',
+        "vline": f'<line x1="14" y1="1" x2="14" y2="15" stroke="{color}" stroke-width="1.6" stroke-dasharray="3 2"/>',
+    }[kind]
+    return f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" aria-hidden="true">{body}</svg>'
+
+
+def legend(items: list[tuple[str, str, str]], tips: list[str] = ()) -> None:
+    """Legenda wykresu schowana pod przyciskiem – pokazuje się dopiero po kliknięciu.
+    items: (rodzaj znacznika, kolor, opis HTML); tips: wskazówki „jak czytać”."""
+    with st.popover("Legenda", icon=":material/info:"):
+        rows = "".join(f'<div class="it">{swatch(k, c)}<span>{t}</span></div>' for k, c, t in items)
+        tips_html = f'<ul class="tips">{"".join(f"<li>{t}</li>" for t in tips)}</ul>' if tips else ""
+        html(f'<div class="lg">{rows}{tips_html}</div>')

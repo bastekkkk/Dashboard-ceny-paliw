@@ -21,6 +21,7 @@ PRESETS = {"7D": 7, "1M": 30, "3M": 91, "6M": 182, "1Y": 365, "MAX": None}
 SERIES_COLORS = {orlen.SERIES: C["orlen"], ara_manual.SERIES: C["ara"],
                  "gold": C["gold"], "silver": "#C8D3DF", "usdpln": C["ara"]}
 PREMIUM_WINDOW_DAYS = 90
+RANGE_TIP = "Zakres zmieniasz przyciskami 7D–MAX nad wykresem; „Własny” = dowolne daty."
 # kraje pokazywane domyślnie w rankingu „gdzie tankować” (Polska + korytarze tranzytowe)
 TRANSIT = ["PL", "DE", "CZ", "SK", "LT", "LV", "AT", "HU", "NL", "BE", "LU", "FR", "IT", "ES", "DK", "SE"]
 
@@ -108,7 +109,9 @@ def metric(df: pd.DataFrame, label: str, unit: str, decimals: int = 2, inverse: 
         st.caption(f"Uwaga: zmiana d/d liczona względem innej miary: {df.iloc[-2]['source']}.")
 
 
-def line_chart(df: pd.DataFrame, name: str, unit: str, color: str) -> None:
+def line_chart(df: pd.DataFrame, name: str, unit: str, color: str, tips: list[str] = ()) -> None:
+    ui.legend([("line", color, f"<b>{escape(name)}</b> – kolejne notowania, {escape(unit)}")],
+              [*tips, "Najedź kursorem na linię – dymek pokazuje datę, wartość i źródło notowania.", RANGE_TIP])
     fig = go.Figure(
         go.Scatter(
             x=df["date"], y=df["value"], name=name, mode="lines", line=dict(width=2, color=color),
@@ -120,7 +123,8 @@ def line_chart(df: pd.DataFrame, name: str, unit: str, color: str) -> None:
     st.plotly_chart(fig, width="stretch")
 
 
-def series_section(series: str, title: str, unit: str, decimals: int = 2, show_warning: bool = True) -> pd.DataFrame:
+def series_section(series: str, title: str, unit: str, decimals: int = 2, show_warning: bool = True,
+                   tips: list[str] = ()) -> pd.DataFrame:
     """Wspólny układ: ostrzeżenie źródła, metric, selektor zakresu, wykres."""
     if show_warning:
         source_warning(series)
@@ -135,7 +139,7 @@ def series_section(series: str, title: str, unit: str, decimals: int = 2, show_w
         if part.empty:
             st.info("Brak notowań w wybranym zakresie.")
         else:
-            line_chart(part, title, unit, SERIES_COLORS.get(series, C["ara"]))
+            line_chart(part, title, unit, SERIES_COLORS.get(series, C["ara"]), tips)
     return df
 
 
@@ -309,6 +313,16 @@ with t_over:
         elif rng:
             orl_part = in_range(orlen_df, rng)
             h_part = in_range(hist, rng) if not hist.empty else hist
+            ui.legend([
+                ("step", C["orlen"], "<b>Hurt ORLEN</b> (Ekodiesel, netto) – schodki, bo cena obowiązuje do kolejnej zmiany cennika"),
+                ("line", C["ara"], "<b>Giełda ARA</b> przeliczona na PLN/m³ (USD/t × USD/PLN ÷ 1,1834)"),
+                ("area", C["orlen"], "<b>Pole między liniami = premia PL</b> – o ile hurt ORLEN jest droższy od giełdy"),
+            ], [
+                "Pole się <b>rozszerza</b> – ORLEN drożeje względem giełdy (lub nie nadąża za jej spadkiem).",
+                "Pole się <b>zwęża</b> – hurt tanieje względem giełdy.",
+                "ORLEN reaguje na ARA z opóźnieniem – spadek niebieskiej linii zwykle zapowiada obniżkę w hurcie.",
+                RANGE_TIP,
+            ])
             fig = go.Figure()
             if not h_part.empty:
                 fig.add_trace(go.Scatter(
@@ -355,6 +369,13 @@ with t_over:
             ui.html(f'<div class="signal"><div class="head"><b>Sygnał dnia</b>'
                     f'<span class="pill" style="background:{pill[1]};color:{pill[2]}">{pill[0]}</span></div>'
                     f"<p>{msg}</p></div>")
+            ui.legend([
+                ("line", C["orlen"], f"<b>Premia PL vs ARA</b> z ostatnich {win_days} dni, PLN/m³"),
+                ("dash", C["muted"], f"<b>Średnia premii</b> z tego okresu ({ui.num(avg_p)} PLN/m³)"),
+            ], [
+                "Linia <b>nad</b> przerywaną – hurt drogi względem giełdy, nie kupuj na zapas.",
+                "Linia <b>pod</b> przerywaną – hurt tani względem giełdy, dobry moment na większy zakup.",
+            ])
             fig = go.Figure(go.Scatter(
                 x=win["date"], y=win["premium"], mode="lines", line=dict(width=2, color=C["orlen"]),
                 hovertemplate="%{x|%Y-%m-%d}<br>%{y:,.0f} PLN/m³<extra></extra>",
@@ -377,7 +398,19 @@ with t_over:
             now_eu = eu_now.loc[eu_last_day]
             ui.card_title("Olej napędowy na stacjach – gdzie tankować",
                           f"Weekly Oil Bulletin KE z {eu_last_day:%d.%m.%Y} · EUR/l z podatkami · od najtańszego")
-            show_all = st.toggle("Wszystkie kraje UE", key="rank_all")
+            t_all, t_leg = st.columns([4, 1], vertical_alignment="center")
+            show_all = t_all.toggle("Wszystkie kraje UE", key="rank_all")
+            with t_leg:
+                ui.legend([
+                    ("bar", C["orlen"], "<b>Polska</b> – punkt odniesienia"),
+                    ("bar", C["good"], "Kraj <b>tańszy</b> niż Polska"),
+                    ("bar", C["neutral"], "Kraj <b>droższy</b> niż Polska"),
+                ], [
+                    "Kolumna „vs PL na 1000 l”: <b style='color:#4FD1B5'>−</b> = tyle zaoszczędzisz, "
+                    "<b style='color:#FF8A7A'>+</b> = tyle dopłacisz względem tankowania w Polsce.",
+                    "Słupki nie startują od zera – porównuj różnice między krajami, nie długości.",
+                    "„Wszystkie kraje UE” – pełna lista zamiast krajów tranzytowych.",
+                ])
             codes = eu_countries if show_all else [c for c in TRANSIT if c in eu_countries]
             ranked = now_eu[codes].sort_values()
             pl = now_eu["PL"]
@@ -406,7 +439,8 @@ with t_over:
 # ================================================================ HURT ORLEN
 with t_orlen:
     st.subheader("Ekodiesel ORLEN – cena hurtowa")
-    orlen_full = series_section(orlen.SERIES, "Ekodiesel ORLEN (hurt)", orlen.UNIT, 0)
+    orlen_full = series_section(orlen.SERIES, "Ekodiesel ORLEN (hurt)", orlen.UNIT, 0,
+                                tips=["Poziome odcinki = cena bez zmian; linia łączy kolejne zmiany cennika."])
     if not orlen_full.empty:
         st.caption(
             f"Historia z API Orlenu od {orlen_full['date'].min():%Y-%m-%d} ({len(orlen_full)} notowań). "
@@ -417,6 +451,14 @@ with t_orlen:
         st.markdown("#### Archiwum – średnie miesięczne (24 pełne miesiące + bieżący)")
         arch = monthly_averages(orlen_full, ARCHIVE_MONTHS)
         partial = arch["partial"]
+        ui.legend([
+            ("bar", C["orlen"], "<b>Średnia miesięczna</b> pełnego miesiąca, PLN/m³ netto"),
+            ("bar-faded", C["orlen"], "<b>Bieżący miesiąc</b> – średnia do dziś, jeszcze się zmieni"),
+        ], [
+            "Słupki startują od zera – długość = cena, można porównywać wprost.",
+            "Średnia ważona dniami: każdy dzień liczy się po cenie, która wtedy obowiązywała.",
+            "Najedź na słupek – dymek pokazuje min, max i zmianę m/m.",
+        ])
         fig = go.Figure(go.Bar(
             x=arch["label"], y=arch["mean"], marker=dict(color=C["orlen"], opacity=[0.45 if p else 1.0 for p in partial]),
             customdata=arch[["min", "max", "diff"]].to_numpy(),
@@ -524,7 +566,9 @@ with t_ara:
     if ara_df.empty:
         st.error("Brak notowań ARA w bazie. Ustaw OILPRICEAPI_KEY i kliknij „Odśwież dane” albo użyj wpisu ręcznego.")
     else:
-        series_section(ara_manual.SERIES, "ICE LS Gasoil (ARA)", ara_manual.UNIT, show_warning=False)
+        series_section(ara_manual.SERIES, "ICE LS Gasoil (ARA)", ara_manual.UNIT, show_warning=False,
+                       tips=["Cena giełdowa w USD/t – bez przeliczenia na PLN i bez podatków.",
+                             "Źródło „średnia dzienna” w dymku = import historii, nie cena zamknięcia."])
         # od kiedy historia jest kompletna (dni robocze pon–pt bez luk; święta ICE liczone jako luki)
         have = set(ara_df["date"].dt.date)
         weekdays = pd.bdate_range(ara_df["date"].min(), ara_df["date"].max()).date
@@ -631,6 +675,17 @@ with t_prem:
             c2.metric("Średnia w zakresie", f"{avg:+,.0f} PLN/m³".replace(",", " "))
             c3.metric("Bieżąca vs średnia", f"{now['premium'] - avg:+,.0f} PLN/m³".replace(",", " "))
 
+            ui.legend([
+                ("line-markers", C["orlen"], "<b>Premia</b> w dniu notowania ARA (ARA = ostatnia cena dnia / wpis ręczny)"),
+                ("dot", C["orlen"], "<b>Kropkowana</b> – ARA to średnia dzienna z importu historii; porównuj ostrożnie"),
+                ("dash", C["muted"], "<b>Średnia premii</b> w wybranym zakresie"),
+            ], [
+                f"<b style='color:{C['up']}'>Nad średnią</b> – hurt ORLEN drogi względem rynku, jest przestrzeń do obniżki.",
+                f"<b style='color:{C['down']}'>Pod średnią</b> – hurt tani względem rynku, korzystny moment na zakup.",
+                "Skok premii 1 stycznia to zwykle zmiana akcyzy/opłaty paliwowej, nie zmiana rynku.",
+                "Najedź na punkt – dymek pokazuje ORLEN, ARA w PLN i kurs USD/PLN.",
+                RANGE_TIP,
+            ])
             fig = go.Figure()
             is_avg = part["ara_source"] == oilpriceapi.SOURCE_AVG
             for mask, label, dash in [(is_avg, "ARA = średnia dzienna (import historii)", "dot"),
@@ -758,6 +813,16 @@ with t_eu:
                    + (" · przeliczenie kursem EUR/PLN z tego samego biuletynu" if eu_pln else ""))
 
         names = [wob.COUNTRIES.get(c, c) for c in ranked.index]
+        ui.legend([
+            ("marker-lg", C["orlen"], "<b>Polska</b>"),
+            ("marker", "#5B7899", "Pozostałe kraje UE – średnia krajowa cena na stacjach"),
+            ("vline", C["muted"], "<b>Średnia UE-27</b> (ważona)"),
+        ], [
+            "Im <b>bardziej w lewo</b>, tym taniej. Kraje posortowane od najtańszego.",
+            "Oś nie zaczyna się od zera – porównuj odległości między punktami.",
+            "Najedź na punkt – dymek pokazuje zmianę t/t i różnicę do Polski.",
+            "Przełączniki „Cena” i „Jednostka” wyżej zmieniają wariant (z/bez podatków, EUR/PLN).",
+        ])
         change = (ranked - prev[ranked.index]) if prev is not None else ranked * float("nan")
         # wykres punktowy, nie słupkowy: oś X nie startuje od zera, więc długość słupka by przekłamywała
         fig = go.Figure(go.Scatter(
@@ -802,6 +867,15 @@ with t_eu:
             names_t = [wob.COUNTRIES.get(c, c) for c in b_t.index]
             op = [1.0 if c == "PL" else 0.6 for c in b_t.index]
             share = (tax_t / b_t * 100).to_numpy()
+            ui.legend([
+                ("bar", C["ara"], "<b>Paliwo bez podatków</b> – produkt, logistyka, marża stacji"),
+                ("bar", C["orlen"], "<b>Podatki i opłaty</b> – akcyza, opłaty, VAT"),
+                ("bar-faded", C["neutral"], "Inne kraje przygaszone, <b>Polska</b> w pełnym kolorze"),
+            ], [
+                "Cały słupek = cena na stacji z podatkami; oś od zera, długości można porównywać.",
+                "Długi czerwony odcinek = drogo przez podatki; długi niebieski = drogie samo paliwo.",
+                "Najedź na wiersz – dymek pokazuje udział podatków w cenie.",
+            ])
             fig = go.Figure([
                 go.Bar(y=names_t, x=n_t.values, name="Paliwo bez podatków", orientation="h",
                        marker=dict(color=C["ara"], opacity=op),
@@ -838,6 +912,15 @@ with t_eu:
             if part.empty:
                 st.info("Brak notowań w wybranym zakresie.")
             else:
+                ui.legend([
+                    ("line", CATEGORICAL[0], "Linia ciągła = <b>kraj</b>; kolory w kolejności wyboru na liście "
+                                             "(nazwy w legendzie nad wykresem)"),
+                    ("dash", C["muted"], "Linia przerywana = <b>średnia UE-27 / strefy euro</b>"),
+                ], [
+                    "Notowania tygodniowe (poniedziałek) – linia łączy kolejne tygodnie.",
+                    "Klik w nazwę kraju w legendzie nad wykresem ukrywa/pokazuje jego linię.",
+                    RANGE_TIP,
+                ])
                 fig = go.Figure()
                 for i, code in enumerate(picked):
                     col = part[code].dropna()
@@ -898,6 +981,17 @@ with t_mkt:
                 "Rozpiętość max/min": f"{part['value'].max() / part['value'].min() - 1:.2%}",
             })
         if rows:
+            ui.legend([
+                ("line", SERIES_COLORS["gold"], "<b>Złoto</b> (USD/oz)"),
+                ("line", SERIES_COLORS["silver"], "<b>Srebro</b> (USD/oz)"),
+                ("line", SERIES_COLORS["usdpln"], "<b>USD/PLN</b> – kurs dolara"),
+                ("dot", C["muted"], "<b>100</b> = wartość na początku zakresu"),
+            ], [
+                "Wszystkie serie sprowadzone do 100 – porównujesz zmianę %, nie cenę (110 = +10%, 95 = −5%).",
+                "USD/PLN nad 100 = dolar podrożał, więc giełdowy diesel (ARA) w PLN też drożeje.",
+                "Dymek pokazuje wartość w oryginalnej jednostce.",
+                RANGE_TIP,
+            ])
             fig.add_hline(y=100, line=dict(width=1, dash="dot", color=C["muted"]))
             ui.style_fig(fig, 420, hovermode="x unified", yaxis_title="Indeks (początek zakresu = 100)",
                          legend=dict(orientation="h", y=1.08))
