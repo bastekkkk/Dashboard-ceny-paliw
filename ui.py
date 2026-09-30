@@ -5,19 +5,19 @@ import plotly.graph_objects as go
 import streamlit as st
 
 C = {
-    "bg": "#0E1216", "card": "#161B21", "border": "#252C35", "grid": "#222931",
-    "text": "#E9EDF1", "muted": "#98A3B0", "faint": "#7E8996",
-    "orlen": "#F2A93B", "ara": "#5AA2F0", "up": "#F59A7E", "down": "#5FD4BA", "good": "#3CC6A8", "neutral": "#4A5563",
+    "bg": "#041A33", "card": "#0B2747", "border": "#1D416A", "grid": "#16365B",
+    "text": "#F2F6FA", "muted": "#A9BFD6", "faint": "#86A0BE",
+    "orlen": "#FF5A4E", "ara": "#6FB4FF", "gold": "#F2C14E", "brand": "#00417B", "red": "#E2322A", "up": "#FF8A7A", "down": "#4FD1B5", "good": "#2FB597", "neutral": "#3A5A80",
 }
 # kategorie na ciemnym tle (kraje na wykresie historii); kolor wg kolejności wyboru
-CATEGORICAL = ["#F2A93B", "#5AA2F0", "#3CC6A8", "#E87BA4", "#B59CFF", "#F07A5A", "#9BD35A", "#D9C9A6"]
+CATEGORICAL = ["#FF5A4E", "#6FB4FF", "#4FD1B5", "#F2C14E", "#C39BFF", "#FF9DC8", "#9BD35A", "#D9C9A6"]
 
 CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:ital,wght@1,700;1,800&display=swap');
 html, body, [data-testid="stAppViewContainer"] p, [data-testid="stAppViewContainer"] li,
 [data-testid="stAppViewContainer"] label, [data-testid="stAppViewContainer"] input,
-[data-testid="stAppViewContainer"] button, h1, h2, h3, h4 { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+[data-testid="stAppViewContainer"] button, h1, h2, h3, h4 { font-family: 'Barlow', system-ui, sans-serif; }
 [data-testid="stHeader"] { background: transparent; }
 .block-container { padding-top: 1.6rem; max-width: 1440px; }
 h2, h3 { letter-spacing: -0.01em; }
@@ -27,47 +27,49 @@ h2, h3 { letter-spacing: -0.01em; }
 .stTabs [data-baseweb="tab"] p { font-size: 15px; font-weight: 500; }
 .num { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
 .brand { display: flex; align-items: center; gap: 12px; }
-.brand b { display: block; font-size: 19px; font-weight: 700; color: #E9EDF1; }
-.brand span { display: block; font-size: 12px; color: #98A3B0; }
-.fresh { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; color: #98A3B0; min-height: 44px; }
+.brand .chip { background: #FFFFFF; border-radius: 10px; padding: 6px 10px; display: flex; align-items: center; }
+.brand .chip img { height: 34px; width: auto; display: block; }
+.brand b { display: block; font-family: 'Barlow Semi Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: 22px; letter-spacing: 0.01em; text-transform: uppercase; color: #F2F6FA; line-height: 1; }
+.brand span { display: block; font-size: 12px; color: #A9BFD6; margin-top: 3px; }
+.fresh { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; color: #A9BFD6; min-height: 44px; }
 .fresh i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.fresh .num { color: #E9EDF1; }
-.kpi { background: #161B21; border: 1px solid #252C35; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; height: 100%; box-sizing: border-box; }
-.kpi.accent { background: #1B1F1A; border-color: #4A3D22; }
-.kpi .lbl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #98A3B0; }
+.fresh .num { color: #F2F6FA; }
+.kpi { background: #0B2747; border: 1px solid #1D416A; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; height: 100%; box-sizing: border-box; }
+.kpi.accent { background: #0B2747; border: 1.5px solid #E2322A; }
+.kpi .lbl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #A9BFD6; }
 .kpi .lbl i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .kpi .row { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
-.kpi .val { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; color: #E9EDF1; line-height: 1.15; }
-.kpi .unit { font-size: 13px; color: #98A3B0; margin-left: 6px; }
+.kpi .val { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; color: #F2F6FA; line-height: 1.15; }
+.kpi .unit { font-size: 13px; color: #A9BFD6; margin-left: 6px; }
 .kpi .delta { font-size: 13px; white-space: nowrap; }
 .kpi .row svg { flex-shrink: 1; min-width: 60px; }
-.kpi .foot { font-size: 12px; color: #7E8996; }
-.kpi.empty .val { color: #7E8996; font-size: 20px; }
+.kpi .foot { font-size: 12px; color: #86A0BE; }
+.kpi.empty .val { color: #86A0BE; font-size: 20px; }
 .signal { display: flex; flex-direction: column; gap: 10px; }
 .signal .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.signal .head b { font-size: 16px; color: #E9EDF1; }
+.signal .head b { font-size: 16px; color: #F2F6FA; }
 .pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-.signal p { margin: 0; font-size: 14px; line-height: 1.5; color: #C9D1DA; }
+.signal p { margin: 0; font-size: 14px; line-height: 1.5; color: #D3DFEC; }
 .rank { display: flex; flex-direction: column; gap: 2px; }
-.rank .r { display: grid; grid-template-columns: minmax(120px, 170px) 1fr 64px 110px; gap: 14px; align-items: center; min-height: 32px; padding: 0 10px; border-radius: 8px; font-size: 14px; color: #E9EDF1; }
-.rank .r.hd { color: #7E8996; font-size: 12px; min-height: 22px; }
-.rank .r.pl { background: #231E14; font-weight: 700; }
-.rank .code { width: 26px; display: inline-block; font-size: 12px; color: #98A3B0; font-weight: 400; }
-.rank .track { height: 10px; background: #1E242B; border-radius: 3px; position: relative; }
+.rank .r { display: grid; grid-template-columns: minmax(120px, 170px) 1fr 64px 110px; gap: 14px; align-items: center; min-height: 32px; padding: 0 10px; border-radius: 8px; font-size: 14px; color: #F2F6FA; }
+.rank .r.hd { color: #86A0BE; font-size: 12px; min-height: 22px; }
+.rank .r.pl { background: #3A1D26; font-weight: 700; }
+.rank .code { width: 26px; display: inline-block; font-size: 12px; color: #A9BFD6; font-weight: 400; }
+.rank .track { height: 10px; background: #16365B; border-radius: 3px; position: relative; }
 .rank .track s { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; text-decoration: none; }
 .rank .p, .rank .d { text-align: right; }
-.reco { background: #12251F; border: 1px solid #1F4A3E; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
-.reco.warn { background: #1E1A12; border-color: #4A3D22; }
-.reco .t { font-size: 12px; font-weight: 600; color: #5FD4BA; letter-spacing: 0.04em; text-transform: uppercase; }
-.reco.warn .t { color: #F5C46E; }
-.reco .m { font-size: 15px; line-height: 1.45; color: #E9EDF1; }
+.reco { background: #0C3434; border: 1px solid #1E5E57; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.reco.warn { background: #33202A; border-color: #6B2E36; }
+.reco .t { font-size: 12px; font-weight: 600; color: #4FD1B5; letter-spacing: 0.04em; text-transform: uppercase; }
+.reco.warn .t { color: #FF9A8E; }
+.reco .m { font-size: 15px; line-height: 1.45; color: #F2F6FA; }
 .reco .s { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.reco .s .num { font-size: 28px; font-weight: 600; color: #5FD4BA; }
-.reco .s span:last-child { font-size: 13px; color: #A7C9BF; }
+.reco .s .num { font-size: 28px; font-weight: 600; color: #4FD1B5; }
+.reco .s span:last-child { font-size: 13px; color: #A7D8CC; }
 .stops { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; }
 .stops span { padding: 6px 10px; border-radius: 8px; }
-.card-title { margin: 0 0 2px; font-size: 18px; font-weight: 600; color: #E9EDF1; }
-.card-sub { margin: 0 0 8px; font-size: 13px; color: #98A3B0; }
+.card-title { margin: 0 0 2px; font-size: 18px; font-weight: 600; color: #F2F6FA; }
+.card-sub { margin: 0 0 8px; font-size: 13px; color: #A9BFD6; }
 @media (max-width: 640px) {
   .rank .r { grid-template-columns: 1fr 56px 90px; }
   .rank .track { display: none; }
@@ -75,13 +77,6 @@ h2, h3 { letter-spacing: -0.01em; }
 }
 </style>
 """
-
-LOGO = (
-    '<svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">'
-    '<rect width="36" height="36" rx="9" fill="#F2A93B"/>'
-    '<path d="M18 8c4 5 7 8.6 7 12a7 7 0 0 1-14 0c0-3.4 3-7 7-12z" stroke="#0E1216" stroke-width="2.4" stroke-linejoin="round"/>'
-    "</svg>"
-)
 
 
 def inject_css() -> None:
@@ -147,8 +142,8 @@ def style_fig(fig: go.Figure, height: int = 380, **layout) -> go.Figure:
     fig.update_layout(
         height=height, margin=dict(l=10, r=10, t=10, b=10), separators=", ",
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="IBM Plex Sans, system-ui, sans-serif", color=C["text"], size=13),
-        hoverlabel=dict(bgcolor="#1E242B", bordercolor=C["border"], font=dict(color=C["text"])),
+        font=dict(family="Barlow, system-ui, sans-serif", color=C["text"], size=13),
+        hoverlabel=dict(bgcolor="#16365B", bordercolor=C["border"], font=dict(color=C["text"])),
         legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color=C["muted"])),
     )
     fig.update_xaxes(**axis)

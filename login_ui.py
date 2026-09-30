@@ -89,7 +89,7 @@ BG = """
 
 
 @lru_cache(maxsize=1)
-def _logo_src() -> str:
+def logo_src() -> str:
     if not LOGO_PATH.exists():
         return ""
     return "data:image/jpeg;base64," + base64.b64encode(LOGO_PATH.read_bytes()).decode()
@@ -122,7 +122,7 @@ def hero() -> None:
 
 
 def form_header() -> None:
-    logo = _logo_src()
+    logo = logo_src()
     img = f'<img src="{logo}" alt="ID Logistics">' if logo else ""
     _html(f'<div class="lf">{img}<h2>Zaloguj się</h2><p class="sub">Dostęp tylko dla zespołu ID Logistics.</p></div>')
 

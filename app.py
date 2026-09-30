@@ -18,7 +18,7 @@ from ui import C, CATEGORICAL
 M3_PER_T = 1.1834  # 1 t / 0,845 kg/l = 1183,4 l
 PRESETS = {"7D": 7, "1M": 30, "3M": 91, "6M": 182, "1Y": 365, "MAX": None}
 SERIES_COLORS = {orlen.SERIES: C["orlen"], ara_manual.SERIES: C["ara"],
-                 "gold": C["orlen"], "silver": "#B8C2CC", "usdpln": C["ara"]}
+                 "gold": C["gold"], "silver": "#C8D3DF", "usdpln": C["ara"]}
 PREMIUM_WINDOW_DAYS = 90
 # kraje pokazywane domyślnie w rankingu „gdzie tankować” (Polska + korytarze tranzytowe)
 TRANSIT = ["PL", "DE", "CZ", "SK", "LT", "LV", "AT", "HU", "NL", "BE", "LU", "FR", "IT", "ES", "DK", "SE"]
@@ -168,7 +168,8 @@ hist = premium_history(ara_df, orlen_df, fx_df) if not (ara_df.empty or orlen_df
 # ---------------------------------------------------------------- nagłówek
 h_brand, h_fresh, h_btn = st.columns([2.2, 5.3, 1.5], vertical_alignment="center")
 h_brand.markdown(
-    f'<div class="brand">{ui.LOGO}<div><b>Ceny paliw</b><span>hurt · giełda · stacje UE</span></div></div>',
+    f'<div class="brand"><span class="chip"><img src="{login_ui.logo_src()}" alt="ID Logistics"></span>'
+    '<div><b>Ceny paliw</b><span>monitoring · Polska i Europa</span></div></div>',
     unsafe_allow_html=True,
 )
 
@@ -279,7 +280,7 @@ with t_over:
                 ))
                 fig.add_trace(go.Scatter(  # wypełnienie premii: od ARA do ORLEN w dniach z notowaniem ARA
                     x=h_part["date"], y=h_part["orlen"], mode="lines", line=dict(width=0),
-                    fill="tonexty", fillcolor="rgba(242,169,59,0.10)", hoverinfo="skip", showlegend=False,
+                    fill="tonexty", fillcolor="rgba(255,90,78,0.12)", hoverinfo="skip", showlegend=False,
                 ))
             fig.add_trace(go.Scatter(
                 x=orl_part["date"], y=orl_part["value"], name="Ekodiesel ORLEN", mode="lines", line_shape="hv",
@@ -301,16 +302,16 @@ with t_over:
             now_p, avg_p = hist.iloc[-1]["premium"], win["premium"].mean()
             diff_p, pct_p = now_p - avg_p, now_p / avg_p - 1
             if pct_p > 0.02:
-                pill = ("Premia wysoka", "#3A2F17", "#F5C46E")
+                pill = ("Premia wysoka", "#3A1D26", "#FF9A8E")
                 msg = (f"Hurt ORLEN jest <b>o {ui.num(diff_p)} PLN/m³ drożej</b> względem giełdy niż średnio w ostatnich "
                        f"{win_days} dniach. Jeśli premia wróci do średniej, hurt ma przestrzeń do spadku – "
                        "rozważ mniejsze partie zamiast zakupu na zapas.")
             elif pct_p < -0.02:
-                pill = ("Premia niska", "#173A33", "#8FE3CF")
+                pill = ("Premia niska", "#0F3A3A", "#7FE3CC")
                 msg = (f"Hurt ORLEN jest <b>o {ui.num(-diff_p)} PLN/m³ taniej</b> względem giełdy niż średnio w ostatnich "
                        f"{win_days} dniach – względnie korzystny moment na większy zakup.")
             else:
-                pill = ("W normie", "#252C35", C["muted"])
+                pill = ("W normie", "#16365B", C["muted"])
                 msg = (f"Premia ({ui.num(now_p)} PLN/m³) jest blisko średniej z {win_days} dni "
                        f"({ui.num(avg_p)} PLN/m³). Hurt wyceniony typowo względem giełdy.")
             ui.html(f'<div class="signal"><div class="head"><b>Sygnał dnia</b>'
@@ -383,8 +384,8 @@ with t_over:
 
             stops = [home, *route]
             chips = "".join(
-                f'<span class="num" style="background:{"#173A33" if now_eu[c] <= now_eu[home] else "#2A1E1A"};'
-                f'color:{"#CFEFE6" if now_eu[c] <= now_eu[home] else "#F5B6A2"}">{c} {ui.num(now_eu[c], 3)}</span>'
+                f'<span class="num" style="background:{"#0F3A3A" if now_eu[c] <= now_eu[home] else "#3A1D26"};'
+                f'color:{"#BDF2E5" if now_eu[c] <= now_eu[home] else "#FFC2BA"}">{c} {ui.num(now_eu[c], 3)}</span>'
                 for c in stops
             )
             ui.html(f'<div class="stops">{chips}<span style="color:{C["muted"]}">EUR/l</span></div>')
@@ -584,7 +585,7 @@ with t_eu:
         fig = go.Figure(go.Scatter(
             x=ranked.values, y=names, mode="markers",
             marker=dict(size=[14 if c == "PL" else 10 for c in ranked.index],
-                        color=[C["orlen"] if c == "PL" else "#6B7684" for c in ranked.index]),
+                        color=[C["orlen"] if c == "PL" else "#5B7899" for c in ranked.index]),
             customdata=pd.DataFrame({"chg": change.values, "vs_pl": (ranked - pl).values}).to_numpy(),
             hovertemplate="<b>%{y}</b><br>%{x:." + str(eu_dec) + "f} " + eu_unit
                           + "<br>t/t %{customdata[0]:+." + str(eu_dec) + "f}"
