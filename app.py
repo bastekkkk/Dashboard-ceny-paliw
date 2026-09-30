@@ -21,7 +21,8 @@ from ui import C, CATEGORICAL
 M3_PER_T = 1.1834  # 1 t / 0,845 kg/l = 1183,4 l
 PRESETS = {"7D": 7, "1M": 30, "3M": 91, "6M": 182, "1Y": 365, "MAX": None}
 SERIES_COLORS = {orlen.SERIES: C["orlen"], ara_manual.SERIES: C["ara"],
-                 "gold": C["gold"], "silver": "#C8D3DF", "usdpln": C["ara"]}
+                 "gold": C["gold"], "silver": "#C8D3DF", "usdpln": C["ara"], "jpypln": "#FF9DC8",
+                 "brent": "#9BD35A"}
 PREMIUM_WINDOW_DAYS = 90
 # kraje pokazywane domyślnie w rankingu „gdzie tankować” (Polska + korytarze tranzytowe)
 TRANSIT = ["PL", "DE", "CZ", "SK", "LT", "LV", "AT", "HU", "NL", "BE", "LU", "FR", "IT", "ES", "DK", "SE"]
@@ -388,9 +389,9 @@ with k4:
                f"{last['date']:%d.%m.%Y} · {L('tańszy dolar = tańsza ARA w PLN', 'cheaper dollar = cheaper ARA in PLN')}{note}")
 
 st.write("")
-t_over, t_orlen, t_wob, t_ara, t_prem, t_eu, t_mkt, t_plan = st.tabs(
-    [L("Przegląd", "Overview"), L("Hurt ORLEN", "ORLEN wholesale"), "WOB", "ARA", L("Premia", "Premium"),
-     L("Stacje UE", "EU pumps"), L("Rynki", "Markets"), L("Plan tankowania", "Refuelling plan")]
+t_over, t_orlen, t_wob, t_eu, t_ara, t_prem, t_mkt, t_plan = st.tabs(
+    [L("Przegląd", "Overview"), L("Hurt ORLEN", "ORLEN wholesale"), "WOB", L("Stacje UE", "EU pumps"), "ARA",
+     L("Premia", "Premium"), L("Rynki", "Markets"), L("Plan tankowania", "Refuelling plan")]
 )
 
 # ================================================================ PRZEGLĄD
@@ -1553,20 +1554,22 @@ with t_eu:
                 st.caption(L("Notowania tygodniowe od 2005 r. Średnie UE i strefy euro linią przerywaną.",
                              "Weekly quotes since 2005. EU and euro area averages as dashed lines."))
 
-# ================================================================ RYNKI: złoto / srebro / USD/PLN
+# ================================================================ RYNKI: złoto / srebro / USD/PLN / JPY/PLN / Brent
 with t_mkt:
-    st.subheader(L("Złoto, srebro, USD/PLN", "Gold, silver, USD/PLN"))
+    st.subheader(L("Złoto, srebro, USD/PLN, ropa Brent, JPY/PLN", "Gold, silver, USD/PLN, Brent crude, JPY/PLN"))
     frames = {}
-    cols = st.columns(3)
-    for col, series in zip(cols, yahoo.TICKERS):
+    tickers = list(yahoo.TICKERS)  # po 3 w rzędzie – w 5 kolumnach wartości się ucinają
+    cols = [c for i in range(0, len(tickers), 3) for c in st.columns(3)][:len(tickers)]
+    for col, series in zip(cols, tickers):
         unit, label = ticker(series)
         with col:
             source_warning(series)
             df = load(series)
             if df.empty:
-                st.error(f"{label}: {L('brak danych w bazie.', 'no data in the database.')}")
+                st.error(f"{label}: " + L("brak danych w bazie. Kliknij „Odśwież dane”.",
+                                          "no data in the database. Click “Refresh data”."))
                 continue
-            metric(df, label, unit, 4 if series == "usdpln" else 2, inverse=series == "usdpln")
+            metric(df, label, unit, yahoo.DECIMALS.get(series, 2), inverse=series in yahoo.INVERSE)
             frames[series] = df
 
     rng = range_picker("cmp")
@@ -1603,13 +1606,19 @@ with t_mkt:
             ui.legend([
                 ("line", SERIES_COLORS["gold"], L("<b>Złoto</b> (USD/oz)", "<b>Gold</b> (USD/oz)")),
                 ("line", SERIES_COLORS["silver"], L("<b>Srebro</b> (USD/oz)", "<b>Silver</b> (USD/oz)")),
+                ("line", SERIES_COLORS["brent"], L("<b>Ropa Brent</b> (USD za baryłkę)", "<b>Brent crude</b> (USD per barrel)")),
                 ("line", SERIES_COLORS["usdpln"], L("<b>USD/PLN</b> – kurs dolara", "<b>USD/PLN</b> – dollar exchange rate")),
+                ("line", SERIES_COLORS["jpypln"], L("<b>JPY/PLN</b> – kurs jena", "<b>JPY/PLN</b> – yen exchange rate")),
                 ("dot", C["muted"], L("<b>100</b> = wartość na początku zakresu", "<b>100</b> = value at the start of the range")),
             ], [
                 L("Wszystkie serie sprowadzone do 100 – porównujesz zmianę %, nie cenę (110 = +10%, 95 = −5%).",
                   "All series rebased to 100 – you compare the % change, not the price (110 = +10%, 95 = −5%)."),
                 L("USD/PLN nad 100 = dolar podrożał, więc giełdowy diesel (ARA) w PLN też drożeje.",
                   "USD/PLN above 100 = the dollar got stronger, so exchange diesel (ARA) in PLN gets pricier too."),
+                L("Brent to ropa naftowa – surowiec; ARA (olej napędowy) zwykle idzie w tę samą stronę.",
+                  "Brent is crude oil – the raw material; ARA (diesel) usually moves in the same direction."),
+                L("Klik w nazwę w legendzie nad wykresem ukrywa/pokazuje serię.",
+                  "Click a name in the legend above the chart to hide/show the series."),
                 L("Dymek pokazuje wartość w oryginalnej jednostce.", "The tooltip shows the value in the original unit."),
                 range_tip(),
             ])
@@ -1621,8 +1630,10 @@ with t_mkt:
                          "Each series is rebased to 100 at its first quote in the range. The tooltip shows the value in the original unit."))
             cols_help = ui.table_legend({
                 c_ser: L("Instrument i jego źródło (Yahoo Finance).", "Instrument and its source (Yahoo Finance)."),
-                c_unit: L("W czym podana jest cena: USD za uncję trojańską (złoto, srebro) lub PLN za 1 USD.",
-                          "The price unit: USD per troy ounce (gold, silver) or PLN per 1 USD."),
+                c_unit: L("W czym podana jest cena: USD za uncję trojańską (złoto, srebro), USD za baryłkę "
+                          "(Brent, 1 bbl = 159 l) lub PLN za 1 USD / 1 JPY.",
+                          "The price unit: USD per troy ounce (gold, silver), USD per barrel "
+                          "(Brent, 1 bbl = 159 l) or PLN per 1 USD / 1 JPY."),
                 c_start: L("Pierwsze notowanie w wybranym zakresie dat (w nawiasie data).",
                            "First quote in the selected date range (date in brackets)."),
                 c_end: L("Ostatnie notowanie w wybranym zakresie dat.", "Last quote in the selected date range."),
@@ -1633,14 +1644,14 @@ with t_mkt:
                 c_rng: L("O ile % Max był wyższy od Min – miara wahań w zakresie. Im więcej, tym bardziej niestabilny rynek.",
                          "By how many % Max was above Min – a measure of volatility in the range. The higher, the more volatile the market."),
             })
-            # złoto/srebro: wzrost = korzystny (turkus); USD/PLN: wzrost = droższy dolar i ARA (czerwony)
+            # złoto/srebro: wzrost = korzystny (turkus); waluty i ropa: wzrost = drożej (czerwony)
             st.dataframe(ui.trend_table(pd.DataFrame(rows), {c_chg: (2, "%")},
-                                        good_up=[s != "usdpln" for s in row_series]),
+                                        good_up=[s not in yahoo.INVERSE for s in row_series]),
                          hide_index=True, width="stretch", column_config=cols_help)
             st.caption(L("▲ wzrost · ▼ spadek w zakresie. Złoto i srebro: wzrost na turkusowo; "
-                         "USD/PLN: wzrost na czerwono (droższy dolar = droższa ARA w PLN).",
+                         "USD/PLN, JPY/PLN i Brent: wzrost na czerwono (droższa waluta / ropa = drożej).",
                          "▲ up · ▼ down in the range. Gold and silver: a rise in teal; "
-                         "USD/PLN: a rise in red (stronger dollar = pricier ARA in PLN)."))
+                         "USD/PLN, JPY/PLN and Brent: a rise in red (pricier currency / oil = more expensive)."))
         else:
             st.info(L("Brak notowań w wybranym zakresie.", "No quotes in the selected range."))
 

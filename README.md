@@ -64,6 +64,8 @@ Aplikacja startuje zablokowana, dopóki nie dostanie skrótu hasła `APP_PASSWOR
 | Złoto | Yahoo Finance `GC=F` | USD/oz | od 2000-08-30 |
 | Srebro | Yahoo Finance `SI=F` | USD/oz | od 2000-08-30 |
 | USD/PLN | Yahoo Finance `USDPLN=X` | PLN za 1 USD | od 2003-12-01 |
+| JPY/PLN | Yahoo Finance `JPYPLN=X` | PLN za 1 JPY | od 2005-07-13 |
+| Ropa Brent | Yahoo Finance `BZ=F` (ICE, kontrakt ciągły) | USD/bbl | od 2007-07-30 |
 | ON na stacjach, UE-27 + średnie UE/strefa euro | [Weekly Oil Bulletin KE](https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en), arkusze „Prices with taxes” / „Prices wo taxes” | EUR/l (PLN/l kursem z biuletynu) | tygodniowo od 2005-01-03 |
 
 Premia: `ARA [PLN/m³] = USD/t × USD/PLN ÷ 1,1834` (gęstość 0,845 kg/l). Różnica Orlen − ARA zawiera podatki, opłaty, logistykę i marżę.
@@ -73,7 +75,7 @@ Historia premii: punkt w każdy dzień z notowaniem ARA (Orlen i USD/PLN z tego 
 ## Struktura
 
 ```
-app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, WOB, ARA, Premia, Stacje UE, Rynki, Plan tankowania); czyta tylko z bazy, cache 15 min
+app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, WOB, Stacje UE, ARA, Premia, Rynki, Plan tankowania); czyta tylko z bazy, cache 15 min
 scheduler.py      auto-odświeżanie pon–sob 18:30 (wątek + nadrabianie po uśpieniu)
 auth.py           bramka hasła (scrypt, skrót tylko w sekretach)
 login_ui.py       ekran logowania w barwach ID Logistics (logo: assets/id-logistics-logo.jpg)

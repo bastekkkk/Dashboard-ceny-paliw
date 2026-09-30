@@ -1,4 +1,4 @@
-"""Złoto, srebro, USD/PLN z Yahoo Finance (yfinance), dzienne ceny zamknięcia."""
+"""Złoto, srebro, USD/PLN, JPY/PLN i ropa Brent z Yahoo Finance (yfinance), dzienne ceny zamknięcia."""
 import time
 
 import pandas as pd
@@ -9,12 +9,19 @@ TICKERS = {
     "gold": ("GC=F", "USD/oz", "Złoto (COMEX GC=F, kontrakt ciągły)"),
     "silver": ("SI=F", "USD/oz", "Srebro (COMEX SI=F, kontrakt ciągły)"),
     "usdpln": ("USDPLN=X", "PLN za 1 USD", "USD/PLN (USDPLN=X)"),
+    "brent": ("BZ=F", "USD/bbl", "Ropa Brent (ICE BZ=F, kontrakt ciągły)"),
+    "jpypln": ("JPYPLN=X", "PLN za 1 JPY", "JPY/PLN (JPYPLN=X)"),
 }
 TICKERS_EN = {  # series -> (jednostka, opis) po angielsku
     "gold": ("USD/oz", "Gold (COMEX GC=F, continuous contract)"),
     "silver": ("USD/oz", "Silver (COMEX SI=F, continuous contract)"),
     "usdpln": ("PLN per 1 USD", "USD/PLN (USDPLN=X)"),
+    "brent": ("USD/bbl", "Brent crude (ICE BZ=F, continuous contract)"),
+    "jpypln": ("PLN per 1 JPY", "JPY/PLN (JPYPLN=X)"),
 }
+# wzrost niekorzystny (czerwony): droższa waluta obca i droższa ropa; złoto/srebro – wzrost korzystny
+INVERSE = {"usdpln", "jpypln", "brent"}
+DECIMALS = {"usdpln": 4, "jpypln": 5}
 TIMEOUT = 30
 ATTEMPTS = 3
 
