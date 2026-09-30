@@ -621,6 +621,71 @@ with t_eu:
     eu_dec = 2 if eu_pln else 3
     eu = load_eu(eu_variant, eu_pln)
 
+    # ---- objaśnienie: z czego składa się cena na stacji (brutto = netto + podatki), liczby z biuletynu
+    eu_b, eu_n = load_eu("brutto", eu_pln), load_eu("netto", eu_pln)
+    both_days = (eu_b.index.intersection(eu_n.index) if not (eu_b.empty or eu_n.empty) else pd.DatetimeIndex([]))
+    both_days = [d for d in both_days if pd.notna(eu_b.at[d, "PL"]) and pd.notna(eu_n.at[d, "PL"])] \
+        if "PL" in eu_b and "PL" in eu_n else []
+    tax_day = max(both_days) if both_days else None
+    if tax_day is not None:
+        pl_b, pl_n = eu_b.at[tax_day, "PL"], eu_n.at[tax_day, "PL"]
+        f_b, f_n, f_t = ui.num(pl_b, eu_dec), ui.num(pl_n, eu_dec), ui.num(pl_b - pl_n, eu_dec)
+        f_share, f_day = f"{ui.num((pl_b - pl_n) / pl_b * 100)}% ceny", f" · {tax_day:%d.%m.%Y}"
+    else:
+        f_b = f_n = f_t = "—"
+        f_share = f_day = ""
+    ui.html(f"""
+    <div class="formula">
+      <div class="box res"><small>Polska: cena na stacji (z podatkami){f_day}</small><b class="num">{f_b}</b><span class="u">{eu_unit}</span></div>
+      <div class="op">=</div>
+      <div class="box"><small>Cena bez podatków (paliwo, logistyka, marża)</small><b class="num">{f_n}</b><span class="u">{eu_unit}</span></div>
+      <div class="op">+</div>
+      <div class="box"><small>Podatki i opłaty: akcyza, opłaty, VAT</small><b class="num">{f_t}</b><span class="u">{eu_unit}</span>
+        <span class="u">{f_share}</span></div>
+    </div>
+    <div class="explain">
+      <div>
+        <h4>Skąd są te dane</h4>
+        <p>Z <b>Weekly Oil Bulletin</b> Komisji Europejskiej. Każdy kraj UE co tydzień raportuje
+        <b>średnią krajową</b> cenę oleju napędowego na stacjach – stan na poniedziałek, publikacja zwykle w czwartek.</p>
+        <p>Ceny podawane są w EUR; wersję w PLN przeliczamy kursem z tego samego biuletynu.
+        To nie są ceny z konkretnej stacji ani z karty flotowej.</p>
+      </div>
+      <div>
+        <h4>„Z podatkami” i „bez podatków”</h4>
+        <ul>
+          <li><b>Z podatkami</b> – cena z pylonu, którą płaci kierowca: paliwo + akcyza i inne opłaty + VAT.</li>
+          <li><b>Bez podatków</b> – sama cena paliwa: koszt produktu z rynku (np. ARA), transport,
+          magazynowanie i marża stacji. Bez akcyzy, opłat i VAT.</li>
+        </ul>
+        <p>Przełącznik „Cena” poniżej zmienia wariant na wszystkich wykresach.</p>
+      </div>
+      <div>
+        <h4>Dlaczego kraje tak się różnią</h4>
+        <ul>
+          <li><b>Podatki</b> – każdy kraj ma własną akcyzę (UE wyznacza tylko minimum) i własną stawkę VAT;
+          część krajów dolicza opłaty za emisję CO₂.</li>
+          <li><b>Samo paliwo</b> – koszt dostaw i logistyki (odległość od rafinerii i portów), konkurencja
+          na rynku i marże stacji.</li>
+          <li>Co waży więcej w danym tygodniu – pokazuje wykres „paliwo vs podatki” niżej.</li>
+        </ul>
+      </div>
+    </div>""")
+    with st.expander("Dla przewoźnika: co to znaczy przy tankowaniu za granicą"):
+        st.markdown(
+            "- **VAT da się odzyskać** – firma odlicza VAT w Polsce, a zagraniczny VAT odzyskuje przez procedurę "
+            "zwrotu VAT z innych krajów UE. Realna różnica między krajami jest więc bliższa cenie **bez VAT** niż "
+            "cenie z pylonu.\n"
+            "- **Akcyzy nie odzyskasz** (poza wyjątkami) – dlatego kraje z wysoką akcyzą są droższe także dla firm.\n"
+            "- **Zwrot części akcyzy dla transportu** („professional diesel”) – w niektórych krajach "
+            "(np. Belgia, Francja, Włochy, Hiszpania) przewoźnicy mogą odzyskać część akcyzy za paliwo do ciężarówek. "
+            "Warunki i stawki ustala każdy kraj – sprawdź u operatora kart paliwowych.\n"
+            "- **Średnia krajowa ≠ Twoja cena** – stacje przy autostradach są zwykle droższe, a karty flotowe "
+            "mają rabaty. Biuletyn dobrze pokazuje różnice między krajami, gorzej cenę na konkretnej stacji.\n"
+            "- **Dane z tygodniowym opóźnieniem** – notowanie z poniedziałku, publikacja w czwartek."
+        )
+    st.write("")
+
     if eu.empty or "PL" not in eu:
         st.error("Brak danych biuletynu KE w bazie. Kliknij „Odśwież dane” (pierwsze pobranie ~4 MB, kilka sekund).")
     else:
@@ -679,6 +744,41 @@ with t_eu:
             st.dataframe(table, hide_index=True, width="stretch")
             st.caption("„vs Polska na 1000 l” – ile więcej (+) lub mniej (−) zapłacisz za 1000 l w danym kraju niż w Polsce "
                        "przy średniej krajowej cenie.")
+
+        if tax_day is not None:
+            st.markdown("#### Z czego składa się cena – paliwo vs podatki")
+            codes_t = [c for c in eu_b.loc[tax_day].dropna().index
+                       if c not in wob.AVERAGES and c in eu_n.columns and pd.notna(eu_n.at[tax_day, c])]
+            b_t = eu_b.loc[tax_day, codes_t].sort_values()
+            n_t = eu_n.loc[tax_day, b_t.index]
+            tax_t = b_t - n_t
+            names_t = [wob.COUNTRIES.get(c, c) for c in b_t.index]
+            op = [1.0 if c == "PL" else 0.6 for c in b_t.index]
+            share = (tax_t / b_t * 100).to_numpy()
+            fig = go.Figure([
+                go.Bar(y=names_t, x=n_t.values, name="Paliwo bez podatków", orientation="h",
+                       marker=dict(color=C["ara"], opacity=op),
+                       hovertemplate="%{y}<br>bez podatków %{x:." + str(eu_dec) + "f} " + eu_unit + "<extra></extra>"),
+                go.Bar(y=names_t, x=tax_t.values, name="Podatki i opłaty (akcyza, opłaty, VAT)", orientation="h",
+                       marker=dict(color=C["orlen"], opacity=op), customdata=share,
+                       hovertemplate="%{y}<br>podatki %{x:." + str(eu_dec) + "f} " + eu_unit
+                                     + " (%{customdata:.0f}% ceny)<extra></extra>"),
+            ])
+            ui.style_fig(fig, max(460, 24 * len(b_t)), barmode="stack", hovermode="y unified",
+                         xaxis=dict(title=f"{eu_unit} z podatkami"), yaxis=dict(autorange="reversed"),
+                         legend=dict(orientation="h", y=1.04, x=0), margin=dict(l=10, r=10, t=40, b=10))
+            st.plotly_chart(fig, width="stretch")
+            hi, lo_ = tax_t.idxmax(), tax_t.idxmin()
+            st.caption(
+                f"Biuletyn z {tax_day:%d.%m.%Y}, od najtańszego. Oś od zera, więc długości słupków można porównywać. "
+                f"Najwięcej podatków: {wob.COUNTRIES.get(hi, hi)} ({ui.num(tax_t[hi], eu_dec)} {eu_unit}), "
+                f"najmniej: {wob.COUNTRIES.get(lo_, lo_)} ({ui.num(tax_t[lo_], eu_dec)} {eu_unit}). "
+                f"Rozpiętość cen bez podatków: {ui.num(n_t.max() - n_t.min(), eu_dec)} {eu_unit}, "
+                f"podatków: {ui.num(tax_t.max() - tax_t.min(), eu_dec)} {eu_unit} – w tym tygodniu kraje bardziej różnią się "
+                + ("ceną samego paliwa niż podatkami" if (n_t.max() - n_t.min()) > (tax_t.max() - tax_t.min())
+                   else "podatkami niż ceną samego paliwa")
+                + f". Udział podatków w Polsce: {ui.num(tax_t['PL'] / b_t['PL'] * 100)}%. Polska wyróżniona."
+            )
 
         st.markdown("#### Historia cen w wybranych krajach")
         options = [c for c in wob.COUNTRIES if c in eu.columns]
