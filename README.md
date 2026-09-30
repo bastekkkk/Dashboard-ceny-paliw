@@ -60,16 +60,39 @@ Aplikacja startuje zablokowana, dopóki nie dostanie skrótu hasła `APP_PASSWOR
 Premia: `ARA [PLN/m³] = USD/t × USD/PLN ÷ 1,1834` (gęstość 0,845 kg/l). Różnica Orlen − ARA zawiera podatki, opłaty, logistykę i marżę.
 Historia premii: punkt w każdy dzień z notowaniem ARA (Orlen i USD/PLN z tego dnia lub ostatniego wcześniejszego notowania). Punkty ze średniej dziennej ARA (import historii) są oznaczone linią kropkowaną.
 
+## Raport miesięczny „Fuel Index”
+
+Średnie miesięczne: hurt ORLEN (z dni kalendarzowych), USD/PLN, EUR/PLN, ARA i premia (jeśli są notowania), ON na stacjach
+w Polsce i średnia UE, ranking krajów UE; zmiany m/m i r/r, wnioski w punktach, historia ORLEN z 13 miesięcy.
+
+- **W aplikacji:** rozwijana sekcja „Raport miesięczny” na dole strony – Excel, HTML (do druku / PDF), „Wyślij e-mailem”.
+- **Z linii poleceń:** `python report.py` (poprzedni miesiąc) lub `python report.py --month 2026-08` → `reports/fuel_index_RRRR-MM.xlsx`
+  i `.html`; `--send` wysyła e-mail.
+- **Automatycznie:** po odświeżeniu danych o 18:30 raport za poprzedni miesiąc idzie e-mailem **raz**, od `REPORT_DAY` dnia
+  miesiąca (domyślnie 4. – jest już biuletyn KE z ostatniego poniedziałku). Wynik w `fetch_log` (seria `report_mail`);
+  po 3 nieudanych próbach w danym miesiącu przestaje próbować.
+- **Konfiguracja e-mail** (zmienne środowiskowe; na Streamlit Cloud: Settings → Secrets, klucze najwyższego poziomu):
+
+  | Zmienna | Opis |
+  |---|---|
+  | `SMTP_HOST`, `SMTP_PORT` | serwer SMTP; port 587 = STARTTLS (domyślny), 465 = SSL |
+  | `SMTP_USER`, `SMTP_PASSWORD` | logowanie (Gmail / Google Workspace: hasło aplikacji) |
+  | `REPORT_FROM` | nadawca (domyślnie `SMTP_USER`) |
+  | `REPORT_TO` | odbiorcy, po przecinku – bez tej zmiennej wysyłka jest wyłączona |
+  | `REPORT_DAY` | od którego dnia miesiąca wysłać (domyślnie 4) |
+  | `REPORT_INCLUDE_ARA` | `0` = raport bez ARA i premii – ustaw, jeśli raport trafia poza firmę (licencja OilPriceAPI: tylko użytek wewnętrzny) |
+
 ## Struktura
 
 ```
 app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, ARA, Premia, Stacje UE, Rynki); czyta tylko z bazy, cache 15 min
-scheduler.py      auto-odświeżanie pon–sob 18:30 (wątek + nadrabianie po uśpieniu)
+scheduler.py      auto-odświeżanie pon–sob 18:30 (wątek + nadrabianie po uśpieniu) + miesięczna wysyłka raportu
 auth.py           bramka hasła (scrypt, skrót tylko w sekretach)
 login_ui.py       ekran logowania w barwach ID Logistics (logo: assets/id-logistics-logo.jpg)
 ui.py             motyw w barwach ID Logistics (granat + czerwień), karty HTML, sparklines, wspólny styl wykresów Plotly
 .streamlit/       config.toml – kolory motywu
 update_data.py    pobieranie Orlen + Yahoo -> SQLite (upsert po serii i dacie)
+report.py         raport miesięczny Fuel Index: Excel, HTML, e-mail (CLI + automatyczna wysyłka ze scheduler.py)
 db.py             SQLite: tabele prices i fetch_log
 sources/          orlen.py, yahoo.py, oilpriceapi.py, ara_manual.py, eu_oil_bulletin.py
 ```

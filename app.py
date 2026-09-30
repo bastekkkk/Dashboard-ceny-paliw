@@ -1,5 +1,6 @@
 """Dashboard hurtowych cen paliw. Uruchom: streamlit run app.py"""
 import math
+import os
 from datetime import date, timedelta
 from html import escape
 
@@ -10,6 +11,7 @@ import streamlit as st
 import auth
 import db
 import login_ui
+import report
 import scheduler
 import ui
 from sources import ara_manual, oilpriceapi, orlen, yahoo
@@ -58,6 +60,13 @@ def load_eu(variant: str, pln: bool) -> pd.DataFrame:
         fx = db.read_series(wob.FX_SERIES).set_index("date")["value"]  # EUR za 1 PLN, z tego samego biuletynu
         wide = wide.div(fx.reindex(wide.index), axis=0).dropna(how="all")
     return wide
+
+
+@st.cache_data(ttl=900)
+def monthly_report(month: str) -> tuple[dict, bytes, str]:
+    """Raport Fuel Index za miesiąc RRRR-MM: (dane, Excel, HTML)."""
+    rep = report.build(pd.Period(month, "M"), with_ara=report.include_ara())
+    return rep, report.to_xlsx(rep), report.to_html(rep)
 
 
 def source_warning(series: str) -> None:
@@ -850,6 +859,36 @@ with t_mkt:
             st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
         else:
             st.info("Brak notowań w wybranym zakresie.")
+
+# ================================================================ RAPORT MIESIĘCZNY
+st.write("")
+with st.expander("Raport miesięczny „Fuel Index” – Excel i e-mail", icon=":material/summarize:"):
+    r1, r2, r3, r4 = st.columns([1.2, 1, 1, 1], vertical_alignment="bottom")
+    this_month = pd.Period(date.today(), "M")
+    rep_month = r1.selectbox("Miesiąc", [this_month - i for i in range(1, 25)] + [this_month],
+                             format_func=lambda p: p.strftime("%m.%Y") + (" (w trakcie)" if p == this_month else ""),
+                             key="rep_month")
+    rep, rep_xlsx, rep_html = monthly_report(str(rep_month))
+    r2.download_button("Excel", rep_xlsx, f"fuel_index_{rep_month.strftime('%Y-%m')}.xlsx",
+                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                       icon=":material/table:", width="stretch")
+    r3.download_button("HTML (do druku / PDF)", rep_html, f"fuel_index_{rep_month.strftime('%Y-%m')}.html",
+                       "text/html", icon=":material/description:", width="stretch")
+    mail_cfg = report.mail_config()
+    if r4.button("Wyślij e-mailem", icon=":material/send:", width="stretch", disabled=mail_cfg is None,
+                 help="Odbiorcy z REPORT_TO." if mail_cfg else "Skonfiguruj SMTP_HOST i REPORT_TO (README)."):
+        try:
+            with st.spinner("Wysyłam…"):
+                st.success(report.send(rep, mail_cfg))
+        except Exception as e:  # noqa: BLE001 – błąd SMTP pokazujemy użytkownikowi
+            st.error(f"Nie wysłano: {type(e).__name__}: {e}")
+    for line in rep["highlights"]:
+        st.markdown(f"- {line}")
+    for line in rep["notes"]:
+        st.caption(f"⚠ {line}")
+    st.caption("Automatycznie: raport za poprzedni miesiąc wysyłany raz, od " + os.environ.get("REPORT_DAY", "4")
+               + ". dnia miesiąca, po odświeżeniu danych o 18:30 – gdy ustawiono SMTP_HOST i REPORT_TO."
+               if mail_cfg else "Wysyłka e-mail wyłączona – brak konfiguracji SMTP (README → Raport miesięczny).")
 
 st.divider()
 st.caption(f"Autor aplikacji: **{login_ui.AUTHOR}** · ID Logistics – narzędzie wewnętrzne")

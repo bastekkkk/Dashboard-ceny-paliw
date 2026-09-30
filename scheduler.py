@@ -3,6 +3,7 @@
 Dwie warstwy, bo hosting (np. Streamlit Community Cloud) nie ma crona i usypia nieużywaną aplikację:
 1. wątek w tle – póki proces serwera żyje, o RUN_AT uruchamia update_data.run_all();
 2. nadrabianie – jeśli o RUN_AT aplikacja spała, pierwsze wejście po tej godzinie odświeża dane.
+Po pobraniu: raport miesięczny e-mailem (report.auto_send_if_due – raz w miesiącu, gdy jest konfiguracja SMTP).
 Każde pobranie (auto albo przycisk) zapisuje w fetch_log znacznik MARKER: ok = wszystkie źródła OK.
 Termin jest „zaliczony” udanym pobraniem po ostatnim 18:30. Nieudane (np. API ORLEN nie odpowiada) jest
 ponawiane co RETRY_EVERY, najwyżej MAX_ATTEMPTS razy na termin – żeby trwała awaria jednego źródła
@@ -15,6 +16,7 @@ from zoneinfo import ZoneInfo
 import streamlit as st
 
 import db
+import report
 import update_data
 
 TZ = ZoneInfo("Europe/Warsaw")
@@ -74,6 +76,7 @@ def _run() -> dict:
     results = update_data.run_all()
     failed = [s for s, (ok, _) in results.items() if not ok]
     db.log_fetch(MARKER, not failed, "wszystkie źródła OK" if not failed else "błąd: " + ", ".join(failed))
+    report.auto_send_if_due()  # raport miesięczny e-mailem: raz w miesiącu, tylko gdy skonfigurowano SMTP
     st.cache_data.clear()
     return results
 
