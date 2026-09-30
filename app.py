@@ -454,6 +454,51 @@ with t_ara:
         "Notowania ze źródłem „średnia dzienna” pochodzą z jednorazowego importu historii – to nie są ceny zamknięcia. "
         "Źródło każdego punktu widać w dymku wykresu."
     )
+    last_h = None if hist.empty else hist.iloc[-1]
+    a_usd = "—" if last_h is None else ui.num(last_h["ara_usd"], 2)
+    a_fx = "—" if last_h is None else ui.num(last_h["fx"], 4)
+    a_pln = "—" if last_h is None else ui.num(last_h["ara_pln"])
+    a_day = "" if last_h is None else f" · {last_h['date']:%d.%m.%Y}"
+    ui.html(f"""
+    <div class="formula">
+      <div class="box"><small>ICE LS Gasoil (ARA){a_day}</small><b class="num">{a_usd}</b><span class="u">USD/t</span></div>
+      <div class="op">×</div>
+      <div class="box"><small>Kurs USD/PLN</small><b class="num">{a_fx}</b><span class="u">PLN</span></div>
+      <div class="op">÷</div>
+      <div class="box"><small>m³ w tonie ON (0,845 kg/l)</small><b class="num">1,1834</b><span class="u">m³/t</span></div>
+      <div class="op">=</div>
+      <div class="box res"><small>ARA w PLN – do porównania z ORLEN</small><b class="num">{a_pln}</b><span class="u">PLN/m³</span></div>
+    </div>""")
+    with st.expander("Czym jest ARA i jak to czytać"):
+        ui.html("""
+    <div class="explain">
+      <div>
+        <h4>Co to jest</h4>
+        <p><b>ARA</b> to porty Amsterdam–Rotterdam–Antwerpia – największy w Europie Zachodniej węzeł
+        rafinerii, terminali i handlu paliwami.</p>
+        <p><b>ICE Low Sulphur Gasoil</b> to kontrakt na olej napędowy o niskiej zawartości siarki
+        z dostawą w ARA, notowany na giełdzie ICE w Londynie, w <b>USD za tonę</b>. To punkt odniesienia
+        dla hurtowych cen diesla w Europie.</p>
+      </div>
+      <div>
+        <h4>Jak czytać</h4>
+        <ul>
+          <li><b>ARA rośnie</b> – rośnie koszt paliwa na rynku; hurt ORLEN zwykle idzie w górę z opóźnieniem.</li>
+          <li><b>ARA spada</b> – jest przestrzeń do obniżek w hurcie.</li>
+          <li>Liczy się też <b>kurs dolara</b>: tańszy dolar obniża ARA w PLN nawet przy tej samej cenie w USD.</li>
+          <li>Czy ORLEN jest drogi względem ARA – pokazuje zakładka <b>Premia</b>.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Na co uważać</h4>
+        <ul>
+          <li>To <b>nie jest cena zakupu</b> dla nas – to cena giełdowa, bez akcyzy, opłat, logistyki i marży.</li>
+          <li>Cena zmienia się w trakcie sesji; aplikacja zapisuje <b>ostatnią cenę dnia</b>, pobieraną
+          po zamknięciu giełdy (ok. 18:30 czasu polskiego).</li>
+          <li>Pierwsze ok. 30 dni historii to <b>średnie dzienne</b> z importu, nie ceny zamknięcia.</li>
+        </ul>
+      </div>
+    </div>""")
     source_warning(ara_manual.SERIES)
     with st.expander("Wpis ręczny (awaryjnie, gdy API nie działa)"), st.form("ara_form", clear_on_submit=True):
         st.caption(f"Cena z [TradingView ICEEUR:ULS1!]({ara_manual.URL}). Kolejne pobranie z API nadpisze wpis z tego samego dnia.")
