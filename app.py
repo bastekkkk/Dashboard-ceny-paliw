@@ -392,11 +392,11 @@ with t_over:
     ]
     with st.container(border=True):
         if not eu_countries or "PL" not in eu_countries:
-            ui.card_title("Olej napędowy na stacjach – gdzie tankować")
+            ui.card_title("Olej napędowy na stacjach w UE")
             st.info("Brak danych biuletynu KE w bazie. Kliknij „Odśwież dane”.")
         else:
             now_eu = eu_now.loc[eu_last_day]
-            ui.card_title("Olej napędowy na stacjach – gdzie tankować",
+            ui.card_title("Olej napędowy na stacjach w UE",
                           f"Weekly Oil Bulletin KE z {eu_last_day:%d.%m.%Y} · EUR/l z podatkami · od najtańszego")
             t_all, t_leg = st.columns([4, 1], vertical_alignment="center")
             show_all = t_all.toggle("Wszystkie kraje UE", key="rank_all")
