@@ -95,8 +95,10 @@ def last_fetch(series: str) -> dict | None:
     return None if row is None else {"ts": row[0], "ok": bool(row[1]), "message": row[2]}
 
 
-def last_fetch_ts() -> str | None:
-    """Czas ostatniego pobrania dowolnej serii (czas lokalny serwera, ISO)."""
+def fetches_since(series: str, since: str) -> list[tuple[str, bool]]:
+    """Wpisy fetch_log danej serii z ts >= since (ISO, czas lokalny serwera), od najstarszego."""
     with connect() as con:
-        row = con.execute("SELECT MAX(ts) FROM fetch_log").fetchone()
-    return row[0]
+        rows = con.execute(
+            "SELECT ts, ok FROM fetch_log WHERE series=? AND ts>=? ORDER BY ts, rowid", (series, since)
+        ).fetchall()
+    return [(ts, bool(ok)) for ts, ok in rows]

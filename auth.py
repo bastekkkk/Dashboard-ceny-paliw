@@ -7,6 +7,7 @@ Brak APP_PASSWORD_HASH = aplikacja zablokowana (fail closed), żeby zapomniany s
 import base64
 import hashlib
 import hmac
+import ipaddress
 import os
 import secrets
 import time
@@ -16,8 +17,11 @@ import streamlit as st
 import login_ui
 
 MAX_ATTEMPTS = 5  # na sesję przeglądarki
-GLOBAL_MAX_FAILS = 30  # na cały serwer w oknie GLOBAL_WINDOW_S (nowa karta nie resetuje limitu)
-GLOBAL_WINDOW_S = 15 * 60
+WINDOW_S = 15 * 60
+IP_MAX_FAILS = 20  # na publiczny adres IP w oknie WINDOW_S – blokuje tylko ten adres, nie wszystkich
+SLOWDOWN_FAILS = 30  # tyle błędów na cały serwer w oknie = każda kolejna błędna próba trwa dłużej
+DELAY_S, SLOW_DELAY_S = 1.5, 5.0
+# Celowo brak globalnej blokady: pozwalałaby każdemu z zewnątrz odciąć wszystkich (także z poprawnym hasłem).
 MAXMEM = 64 * 1024 * 1024
 
 
@@ -49,15 +53,29 @@ def _stored_hash() -> str | None:
 
 
 @st.cache_resource
-def _global_fails() -> list[float]:
-    return []
+def _fail_log() -> dict[str, list[float]]:
+    """Nieudane próby: klucz = publiczny IP klienta albo "*" (cały serwer). Wspólne dla wszystkich sesji."""
+    return {}
 
 
-def _recent_fails() -> list[float]:
-    fails = _global_fails()
-    cutoff = time.time() - GLOBAL_WINDOW_S
-    fails[:] = [t for t in fails if t > cutoff]
-    return fails
+def _recent(key: str) -> list[float]:
+    log = _fail_log()
+    cutoff = time.time() - WINDOW_S
+    for k in [k for k, v in log.items() if not v or v[-1] <= cutoff]:  # sprzątanie starych wpisów
+        del log[k]
+    log.setdefault(key, [])
+    log[key][:] = [t for t in log[key] if t > cutoff]
+    return log[key]
+
+
+def _client_ip() -> str | None:
+    """Publiczny IP klienta. Adres prywatny/lokalny (np. proxy hostingu wspólne dla wszystkich) = None,
+    żeby limit na IP nie zamienił się w blokadę wszystkich."""
+    try:
+        ip = st.context.ip_address
+        return ip if ip and ipaddress.ip_address(ip).is_global else None
+    except (AttributeError, ValueError):
+        return None
 
 
 def require_password() -> None:
@@ -75,7 +93,8 @@ def require_password() -> None:
             login_ui.footer()
             st.stop()
         attempts = st.session_state.get("auth_attempts", 0)
-        if attempts >= MAX_ATTEMPTS or len(_recent_fails()) >= GLOBAL_MAX_FAILS:
+        ip = _client_ip()
+        if attempts >= MAX_ATTEMPTS or (ip and len(_recent(ip)) >= IP_MAX_FAILS):
             login_ui.error("Za dużo nieudanych prób. Spróbuj ponownie za 15 minut.")
             login_ui.footer()
             st.stop()
@@ -91,8 +110,12 @@ def require_password() -> None:
                 st.rerun()
             else:
                 st.session_state["auth_attempts"] = attempts + 1
-                _recent_fails().append(time.time())
-                time.sleep(1.5)  # spowalnia zgadywanie
+                now = time.time()
+                _recent("*").append(now)
+                if ip:
+                    _recent(ip).append(now)
+                # spowalnia zgadywanie; przy ataku (dużo błędów na serwerze) mocniej, ale bez blokowania innych
+                time.sleep(SLOW_DELAY_S if len(_recent("*")) >= SLOWDOWN_FAILS else DELAY_S)
                 left_n = MAX_ATTEMPTS - attempts - 1
                 login_ui.error("Nieprawidłowe hasło. " + (
                     "To była ostatnia próba." if left_n <= 0 else

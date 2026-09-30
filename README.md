@@ -19,14 +19,17 @@ Aplikacja startuje zablokowana, dopóki nie dostanie skrótu hasła `APP_PASSWOR
 - Nowy skrót: `python auth.py` (hasło wpisujesz niewidocznie) → wynik to linia `scrypt$...`.
 - Streamlit Cloud: Settings → Secrets → `APP_PASSWORD_HASH = "scrypt$..."`.
 - Lokalnie: plik `.streamlit/secrets.toml` z tą samą linią (plik jest w `.gitignore`) albo zmienna środowiskowa `APP_PASSWORD_HASH`.
-- Limit: 5 błędnych prób na sesję i 30 na cały serwer w ciągu 15 minut; każda błędna próba to 1,5 s opóźnienia.
+- Limity: 5 błędnych prób na sesję i 20 na publiczny adres IP w ciągu 15 minut (blokada dotyczy tylko tego adresu);
+  każda błędna próba to 1,5 s opóźnienia, a przy ponad 30 błędach na serwerze – 5 s. Nie ma blokady wszystkich
+  użytkowników naraz, więc nikt z zewnątrz nie odetnie zespołu od aplikacji.
 - Zmiana hasła = nowy skrót w sekretach; stare hasło przestaje działać od razu.
 
 ## Odświeżanie danych
 
 - **Automatycznie w aplikacji** (`scheduler.py`): pon–sob o **18:30 czasu polskiego**. Wątek w tle pobiera dane, póki
   serwer działa; jeśli aplikacja o 18:30 spała (np. Streamlit Community Cloud), pierwsze wejście po tej godzinie
-  pobiera je od razu (~15–30 s). Termin jest „zaliczony” każdym pobraniem po 18:30, także przyciskiem.
+  pobiera je od razu (~15–30 s). Termin jest „zaliczony” udanym pobraniem po 18:30, także przyciskiem;
+  nieudane jest ponawiane co 30 min, najwyżej 4 razy na termin.
 - Ręcznie: `python update_data.py` albo przycisk **„Odśwież dane”** w aplikacji (ten sam kod).
 - cron (Linux/macOS), pon–sob 18:30: `30 18 * * 1-6 cd /ścieżka/do/repo && .venv/bin/python update_data.py`
 - Windows: Harmonogram zadań → akcja `.venv\Scripts\python.exe update_data.py`, katalog startowy = repo.

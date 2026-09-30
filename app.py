@@ -1,4 +1,5 @@
 """Dashboard hurtowych cen paliw. Uruchom: streamlit run app.py"""
+import math
 from datetime import date, timedelta
 from html import escape
 
@@ -424,8 +425,9 @@ with t_over:
             reach = tank / cons * 100
             ui.html(f'<div class="fresh num" style="min-height:0;justify-content:space-between">'
                     f"<span>Potrzeba ≈ {ui.num(need)} l</span><span>Zasięg ≈ {ui.num(reach)} km</span></div>")
-            if need > tank:
-                st.caption(f"Trasa wymaga co najmniej {int(need // tank)} tankowania po drodze.")
+            stops = max(0, math.ceil(need / tank) - 1)  # pełny bak na start + tankowania po drodze
+            if stops:
+                st.caption(f"Tankowania po drodze: co najmniej {stops} (przy pełnym baku na starcie).")
             st.caption("Średnie krajowe ceny z podatkami z biuletynu KE. Ceny na kartach flotowych i przy autostradach "
                        "oraz odliczenie VAT mogą zmienić wynik.")
 
