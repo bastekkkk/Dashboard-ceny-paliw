@@ -47,7 +47,9 @@ Historia premii: punkt w każdy dzień z notowaniem ARA (Orlen i USD/PLN z tego 
 ## Struktura
 
 ```
-app.py            UI Streamlit (czyta tylko z bazy, cache 15 min)
+app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, ARA, Premia, Stacje UE, Rynki); czyta tylko z bazy, cache 15 min
+ui.py             motyw (ciemny), karty HTML, sparklines, wspólny styl wykresów Plotly
+.streamlit/       config.toml – kolory motywu
 update_data.py    pobieranie Orlen + Yahoo -> SQLite (upsert po serii i dacie)
 db.py             SQLite: tabele prices i fetch_log
 sources/          orlen.py, yahoo.py, oilpriceapi.py, ara_manual.py, eu_oil_bulletin.py
