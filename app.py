@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+import auth
 import db
 import ui
 import update_data
@@ -23,6 +24,7 @@ TRANSIT = ["PL", "DE", "CZ", "SK", "LT", "LV", "AT", "HU", "NL", "BE", "LU", "FR
 
 st.set_page_config(page_title="Ceny paliw – hurt i stacje", layout="wide")
 ui.inject_css()
+auth.require_password()
 
 
 @st.cache_data(ttl=900)

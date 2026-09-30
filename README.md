@@ -12,6 +12,16 @@ python -m venv .venv && export OILPRICEAPI_KEY=twoj_klucz   # Windows: setx OILP
 .venv/bin/streamlit run app.py                   # http://localhost:8501
 ```
 
+## Hasło (dostęp do aplikacji)
+
+Aplikacja startuje zablokowana, dopóki nie dostanie skrótu hasła `APP_PASSWORD_HASH` (scrypt z solą). W repo nie ma ani hasła, ani skrótu.
+
+- Nowy skrót: `python auth.py` (hasło wpisujesz niewidocznie) → wynik to linia `scrypt$...`.
+- Streamlit Cloud: Settings → Secrets → `APP_PASSWORD_HASH = "scrypt$..."`.
+- Lokalnie: plik `.streamlit/secrets.toml` z tą samą linią (plik jest w `.gitignore`) albo zmienna środowiskowa `APP_PASSWORD_HASH`.
+- Limit: 5 błędnych prób na sesję i 30 na cały serwer w ciągu 15 minut; każda błędna próba to 1,5 s opóźnienia.
+- Zmiana hasła = nowy skrót w sekretach; stare hasło przestaje działać od razu.
+
 ## Odświeżanie danych
 
 - Ręcznie: `python update_data.py` albo przycisk **„Odśwież dane”** w aplikacji (ten sam kod).
@@ -48,6 +58,7 @@ Historia premii: punkt w każdy dzień z notowaniem ARA (Orlen i USD/PLN z tego 
 
 ```
 app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, ARA, Premia, Stacje UE, Rynki); czyta tylko z bazy, cache 15 min
+auth.py           bramka hasła (scrypt, skrót tylko w sekretach)
 ui.py             motyw (ciemny), karty HTML, sparklines, wspólny styl wykresów Plotly
 .streamlit/       config.toml – kolory motywu
 update_data.py    pobieranie Orlen + Yahoo -> SQLite (upsert po serii i dacie)
