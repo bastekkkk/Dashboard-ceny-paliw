@@ -6,6 +6,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from i18n import L, en
+
 C = {
     "bg": "#041A33", "card": "#0B2747", "border": "#1D416A", "grid": "#16365B",
     "text": "#F2F6FA", "muted": "#A9BFD6", "faint": "#86A0BE",
@@ -122,8 +124,10 @@ def html(markup: str) -> None:
 
 
 def num(value: float, decimals: int = 0, sign: bool = False) -> str:
-    """Format PL: spacja tysięcy, przecinek dziesiętny, minus typograficzny."""
-    s = f"{value:{'+' if sign else ''},.{decimals}f}".replace(",", "\u00a0").replace(".", ",")  # twarda spacja: liczba się nie łamie
+    """PL: spacja tysięcy, przecinek dziesiętny; EN: przecinek tysięcy, kropka dziesiętna. Minus typograficzny."""
+    s = f"{value:{'+' if sign else ''},.{decimals}f}"
+    if not en():
+        s = s.replace(",", "\u00a0").replace(".", ",")  # twarda spacja: liczba się nie łamie
     return s.replace("-", "−")
 
 
@@ -141,7 +145,7 @@ def sparkline(values, color: str, w: int = 110, h: int = 30) -> str:
 def delta_html(diff: float, pct: float | None, decimals: int, suffix: str = "d/d") -> str:
     """Wzrost ceny = gorzej dla kupującego (pomarańczowy ▲), spadek = lepiej (turkusowy ▼)."""
     if diff == 0:
-        return f'<span class="delta num" style="color:{C["muted"]}">bez zmian {suffix}</span>'
+        return f'<span class="delta num" style="color:{C["muted"]}">{L("bez zmian", "no change")} {suffix}</span>'
     up = diff > 0
     pct_txt = f" ({num(pct * 100, 1, sign=True)}%)" if pct is not None else ""
     return (f'<span class="delta num" style="color:{C["up"] if up else C["down"]}">'
@@ -163,7 +167,7 @@ def kpi(label: str, value: str, unit: str, delta: str = "", spark: str = "", foo
 def kpi_empty(label: str, msg: str, dot: str | None = None) -> None:
     dot_html = f'<i style="background:{dot}"></i>' if dot else ""
     html(f'<div class="kpi empty"><div class="top"><div class="lbl">{dot_html}{escape(label)}</div></div>'
-         f'<div class="val">brak danych</div><div class="foot">{escape(msg)}</div></div>')
+         f'<div class="val">{L("brak danych", "no data")}</div><div class="foot">{escape(msg)}</div></div>')
 
 
 def card_title(title: str, sub: str = "") -> None:
@@ -174,7 +178,7 @@ def style_fig(fig: go.Figure, height: int = 380, **layout) -> go.Figure:
     axis = dict(gridcolor=C["grid"], zerolinecolor=C["grid"], linecolor=C["border"],
                 tickfont=dict(color=C["faint"], size=11), title_font=dict(color=C["muted"], size=12))
     fig.update_layout(
-        height=height, margin=dict(l=10, r=10, t=10, b=10), separators=", ",
+        height=height, margin=dict(l=10, r=10, t=10, b=10), separators=".," if en() else ", ",
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Barlow, system-ui, sans-serif", color=C["text"], size=13),
         hoverlabel=dict(bgcolor="#16365B", bordercolor=C["border"], font=dict(color=C["text"])),
@@ -212,14 +216,15 @@ def swatch(kind: str, color: str) -> str:
 def legend(items: list[tuple[str, str, str]], tips: list[str] = ()) -> None:
     """Legenda wykresu schowana pod przyciskiem – pokazuje się dopiero po kliknięciu.
     items: (rodzaj znacznika, kolor, opis HTML); tips: wskazówki „jak czytać”."""
-    with st.popover("Legenda", icon=":material/info:"):
+    with st.popover(L("Legenda", "Legend"), icon=":material/info:"):
         rows = "".join(f'<div class="it">{swatch(k, c)}<span>{t}</span></div>' for k, c, t in items)
         tips_html = f'<ul class="tips">{"".join(f"<li>{t}</li>" for t in tips)}</ul>' if tips else ""
         html(f'<div class="lg">{rows}{tips_html}</div>')
 
 
-TREND_NOTE = ("▲ wzrost · ▼ spadek · ● bez zmian – czerwony = drożej / niekorzystnie, "
-              "turkusowy = taniej / korzystnie.")
+def trend_note() -> str:
+    return L("▲ wzrost · ▼ spadek · ● bez zmian – czerwony = drożej / niekorzystnie, turkusowy = taniej / korzystnie.",
+             "▲ up · ▼ down · ● no change – red = more expensive / unfavourable, teal = cheaper / favourable.")
 
 
 def _arrow(v: float, decimals: int, suffix: str) -> str:
@@ -250,7 +255,7 @@ def trend_table(df: pd.DataFrame, trend: dict[str, tuple[int, str]], fmt: dict[s
 def table_legend(columns: dict[str, str], tips: list[str] = ()) -> dict:
     """Objaśnienie kolumn tabeli pod przyciskiem (jak legenda wykresu) + te same opisy jako dymek ⓘ w nagłówkach.
     Zwraca column_config do st.dataframe."""
-    with st.popover("Co oznaczają kolumny", icon=":material/help:"):
+    with st.popover(L("Co oznaczają kolumny", "What the columns mean"), icon=":material/help:"):
         rows = "".join(f"<dt>{escape(c)}</dt><dd>{t}</dd>" for c, t in columns.items())
         tips_html = f'<ul class="tips">{"".join(f"<li>{t}</li>" for t in tips)}</ul>' if tips else ""
         html(f'<div class="lg" style="max-width:640px"><dl>{rows}</dl>{tips_html}</div>')

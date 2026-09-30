@@ -12,6 +12,12 @@ python -m venv .venv && export OILPRICEAPI_KEY=twoj_klucz   # Windows: setx OILP
 .venv/bin/streamlit run app.py                   # http://localhost:8501
 ```
 
+## Język (PL / EN)
+
+Przełącznik **PL | EN** jest w nagłówku dashboardu i na ekranie logowania. Wybór trafia do adresu (`?lang=en`),
+więc przetrwa odświeżenie strony i wylogowanie; link z `?lang=en` otwiera aplikację od razu po angielsku.
+Teksty są w kodzie parami `L("po polsku", "in English")` (`i18n.py`). Komunikaty błędów z API źródeł zostają w oryginale.
+
 ## Hasło (dostęp do aplikacji)
 
 Aplikacja startuje zablokowana, dopóki nie dostanie skrótu hasła `APP_PASSWORD_HASH` (scrypt z solą). W repo nie ma ani hasła, ani skrótu.
@@ -71,6 +77,7 @@ app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, 
 scheduler.py      auto-odświeżanie pon–sob 18:30 (wątek + nadrabianie po uśpieniu)
 auth.py           bramka hasła (scrypt, skrót tylko w sekretach)
 login_ui.py       ekran logowania w barwach ID Logistics (logo: assets/id-logistics-logo.jpg)
+i18n.py           język interfejsu PL/EN (przełącznik + L("pl", "en"))
 ui.py             motyw w barwach ID Logistics (granat + czerwień), karty HTML, sparklines, wspólny styl wykresów Plotly
 .streamlit/       config.toml – kolory motywu
 update_data.py    pobieranie Orlen + Yahoo -> SQLite (upsert po serii i dacie)

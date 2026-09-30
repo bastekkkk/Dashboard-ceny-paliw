@@ -5,6 +5,8 @@ from pathlib import Path
 
 import streamlit as st
 
+from i18n import L
+
 LOGO_PATH = Path(__file__).parent / "assets" / "id-logistics-logo.jpg"
 AUTHOR = "Bastian Jarosz"
 
@@ -53,6 +55,10 @@ CSS = """
 .lnote { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px solid #E3E9F0;
          font-size: 13px; color: #4A5B6D; }
 .lnote.author-m { display: none; }
+/* przełącznik PL | EN na białym tle */
+.st-key-lf-lang { align-items: flex-end; padding-top: 28px; }
+.st-key-lf-lang button { background: #F6F8FB; border-color: #C9D3DE; color: #4A5B6D; font-weight: 600; }
+.st-key-lf-lang button p { color: inherit; }
 
 @media (max-width: 640px) {
   .lp { min-height: 0; padding: 32px 24px 48px; border-radius: 16px; }
@@ -103,20 +109,22 @@ def hero() -> None:
     _html(CSS)
     _html(f"""
     <div class="lp">{BG}
-      <div class="tag"><i></i>Narzędzie wewnętrzne · Dział transportu</div>
+      <div class="tag"><i></i>{L("Narzędzie wewnętrzne · Dział transportu", "Internal tool · Transport department")}</div>
       <div>
-        <div class="eyebrow">MONITORING CEN PALIW</div>
-        <h1>Polska<br>i Europa<br>na jednym ekranie.</h1>
-        <p class="lead">Bieżące ceny paliw dla zespołu transportu: hurt w Polsce, giełda ARA i ceny ON na stacjach w krajach UE.</p>
+        <div class="eyebrow">{L("MONITORING CEN PALIW", "FUEL PRICE MONITORING")}</div>
+        <h1>{L("Polska<br>i Europa<br>na jednym ekranie.", "Poland<br>and Europe<br>on one screen.")}</h1>
+        <p class="lead">{L("Bieżące ceny paliw dla zespołu transportu: hurt w Polsce, giełda ARA i ceny ON na stacjach w krajach UE.",
+                           "Current fuel prices for the transport team: Polish wholesale, the ARA exchange and diesel pump prices across EU countries.")}</p>
         <ul>
-          <li>{CHECK}Hurt ORLEN i giełda ARA – codziennie</li>
-          <li>{CHECK}Ceny ON na stacjach w 27 krajach UE – co tydzień</li>
-          <li>{CHECK}Porównanie krajów na trasie i premia PL vs ARA</li>
+          <li>{CHECK}{L("Hurt ORLEN i giełda ARA – codziennie", "ORLEN wholesale and ARA exchange – daily")}</li>
+          <li>{CHECK}{L("Ceny ON na stacjach w 27 krajach UE – co tydzień", "Diesel pump prices in 27 EU countries – weekly")}</li>
+          <li>{CHECK}{L("Porównanie krajów na trasie i premia PL vs ARA", "Country comparison along the route and PL vs ARA premium")}</li>
         </ul>
       </div>
       <div>
-        <div class="author">Autor aplikacji: <b>{AUTHOR}</b></div>
-        <div class="src">Źródła: ORLEN · ICE LS Gasoil · Komisja Europejska (Weekly Oil Bulletin) · Yahoo Finance</div>
+        <div class="author">{L("Autor aplikacji", "App author")}: <b>{AUTHOR}</b></div>
+        <div class="src">{L("Źródła: ORLEN · ICE LS Gasoil · Komisja Europejska (Weekly Oil Bulletin) · Yahoo Finance",
+                            "Sources: ORLEN · ICE LS Gasoil · European Commission (Weekly Oil Bulletin) · Yahoo Finance")}</div>
       </div>
     </div>""")
 
@@ -124,7 +132,8 @@ def hero() -> None:
 def form_header() -> None:
     logo = logo_src()
     img = f'<img src="{logo}" alt="ID Logistics">' if logo else ""
-    _html(f'<div class="lf">{img}<h2>Zaloguj się</h2><p class="sub">Dostęp tylko dla zespołu ID Logistics.</p></div>')
+    _html(f'<div class="lf">{img}<h2>{L("Zaloguj się", "Sign in")}</h2>'
+          f'<p class="sub">{L("Dostęp tylko dla zespołu ID Logistics.", "Access for the ID Logistics team only.")}</p></div>')
 
 
 def error(msg: str) -> None:
@@ -132,8 +141,8 @@ def error(msg: str) -> None:
 
 
 def footer() -> None:
-    _html(f'<div class="lnote">{LOCK}<span>Połączenie szyfrowane · limit prób logowania</span></div>'
-          f'<div class="lnote author-m"><span>Autor aplikacji: <b>{AUTHOR}</b></span></div>')
+    _html(f'<div class="lnote">{LOCK}<span>{L("Połączenie szyfrowane · limit prób logowania", "Encrypted connection · limited login attempts")}</span></div>'
+          f'<div class="lnote author-m"><span>{L("Autor aplikacji", "App author")}: <b>{AUTHOR}</b></span></div>')
 
 
 def loading(placeholder) -> None:
@@ -144,6 +153,6 @@ def loading(placeholder) -> None:
         '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" '
         'stroke="#E2322A" stroke-width="3" stroke-dasharray="42 100" stroke-linecap="round">'
         '<animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.9s" '
-        'repeatCount="indefinite"/></circle></svg>Zalogowano – wczytuję dane…</div>',
+        f'repeatCount="indefinite"/></circle></svg>{L("Zalogowano – wczytuję dane…", "Signed in – loading data…")}</div>',
         unsafe_allow_html=True,
     )

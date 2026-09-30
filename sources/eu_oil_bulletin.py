@@ -32,6 +32,8 @@ VARIANTS = {
 }
 # krótkie etykiety do przełączników; bez podatków pierwsze = domyślne (porównywalne między krajami i z ARA)
 LABELS = {"netto": "Bez podatków", "brutto": "Z podatkami"}
+LABELS_EN = {"netto": "Without taxes", "brutto": "With taxes"}
+DESC_EN = {"brutto": "with taxes (pump price)", "netto": "excl. excise duty, levies and VAT"}
 LOG_SERIES = "eu_oil_bulletin"  # nazwa w fetch_log (jedno pobranie = wszystkie kraje)
 FX_SERIES = "eu_wob_eur_per_pln"  # kurs z biuletynu: ile EUR za 1 PLN (do przeliczenia na PLN/l)
 FX_UNIT = "EUR za 1 PLN"
@@ -43,6 +45,14 @@ COUNTRIES = {
     "HR": "Chorwacja", "HU": "Węgry", "IE": "Irlandia", "IT": "Włochy", "LT": "Litwa", "LU": "Luksemburg",
     "LV": "Łotwa", "MT": "Malta", "NL": "Holandia", "PL": "Polska", "PT": "Portugalia", "RO": "Rumunia",
     "SE": "Szwecja", "SI": "Słowenia", "SK": "Słowacja", "UK": "Wielka Brytania (do 2020)",
+}
+COUNTRIES_EN = {
+    "EU": "EU-27 average (weighted)", "EUR": "Euro area average (weighted)",
+    "AT": "Austria", "BE": "Belgium", "BG": "Bulgaria", "CY": "Cyprus", "CZ": "Czechia", "DE": "Germany",
+    "DK": "Denmark", "EE": "Estonia", "ES": "Spain", "FI": "Finland", "FR": "France", "GR": "Greece",
+    "HR": "Croatia", "HU": "Hungary", "IE": "Ireland", "IT": "Italy", "LT": "Lithuania", "LU": "Luxembourg",
+    "LV": "Latvia", "MT": "Malta", "NL": "Netherlands", "PL": "Poland", "PT": "Portugal", "RO": "Romania",
+    "SE": "Sweden", "SI": "Slovenia", "SK": "Slovakia", "UK": "United Kingdom (until 2020)",
 }
 AVERAGES = ("EU", "EUR")
 

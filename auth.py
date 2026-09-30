@@ -14,7 +14,9 @@ import time
 
 import streamlit as st
 
+import i18n
 import login_ui
+from i18n import L
 
 MAX_ATTEMPTS = 5  # na sesję przeglądarki
 WINDOW_S = 15 * 60
@@ -96,23 +98,28 @@ def _login_screen(root, stored: str | None) -> None:
     with left:
         login_ui.hero()
     with right:
+        with st.container(key="lf-lang"):
+            i18n.picker()
         login_ui.form_header()
         if not stored:
-            login_ui.error("Dostęp zablokowany: brak APP_PASSWORD_HASH w sekretach aplikacji (patrz README).")
+            login_ui.error(L("Dostęp zablokowany: brak APP_PASSWORD_HASH w sekretach aplikacji (patrz README).",
+                             "Access blocked: APP_PASSWORD_HASH is missing from the app secrets (see README)."))
             login_ui.footer()
             st.stop()
         attempts = st.session_state.get("auth_attempts", 0)
         ip = _client_ip()
         if attempts >= MAX_ATTEMPTS or (ip and len(_recent(ip)) >= IP_MAX_FAILS):
-            login_ui.error("Za dużo nieudanych prób. Spróbuj ponownie za 15 minut.")
+            login_ui.error(L("Za dużo nieudanych prób. Spróbuj ponownie za 15 minut.",
+                             "Too many failed attempts. Try again in 15 minutes."))
             login_ui.footer()
             st.stop()
         with st.form("login", border=False):
-            pwd = st.text_input("Hasło", type="password", autocomplete="current-password", placeholder="Wpisz hasło")
-            ok = st.form_submit_button("Zaloguj  →", width="stretch")
+            pwd = st.text_input(L("Hasło", "Password"), type="password", autocomplete="current-password",
+                                placeholder=L("Wpisz hasło", "Enter password"))
+            ok = st.form_submit_button(L("Zaloguj  →", "Sign in  →"), width="stretch")
         if ok:
             if not pwd:
-                login_ui.error("Wpisz hasło.")
+                login_ui.error(L("Wpisz hasło.", "Enter the password."))
             elif verify(pwd, stored):
                 st.session_state["auth_ok"] = True
                 st.session_state.pop("auth_attempts", None)
@@ -127,11 +134,17 @@ def _login_screen(root, stored: str | None) -> None:
                 # spowalnia zgadywanie; przy ataku (dużo błędów na serwerze) mocniej, ale bez blokowania innych
                 time.sleep(SLOW_DELAY_S if len(_recent("*")) >= SLOWDOWN_FAILS else DELAY_S)
                 left_n = MAX_ATTEMPTS - attempts - 1
-                login_ui.error("Nieprawidłowe hasło. " + (
-                    "To była ostatnia próba." if left_n <= 0 else
-                    "Pozostała 1 próba." if left_n == 1 else
-                    f"Pozostały {left_n} próby." if left_n <= 4 else f"Pozostało {left_n} prób."
-                ))
+                if i18n.en():
+                    login_ui.error("Incorrect password. " + (
+                        "That was the last attempt." if left_n <= 0 else
+                        "1 attempt left." if left_n == 1 else f"{left_n} attempts left."
+                    ))
+                else:
+                    login_ui.error("Nieprawidłowe hasło. " + (
+                        "To była ostatnia próba." if left_n <= 0 else
+                        "Pozostała 1 próba." if left_n == 1 else
+                        f"Pozostały {left_n} próby." if left_n <= 4 else f"Pozostało {left_n} prób."
+                    ))
         login_ui.footer()
 
 

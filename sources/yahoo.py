@@ -10,6 +10,11 @@ TICKERS = {
     "silver": ("SI=F", "USD/oz", "Srebro (COMEX SI=F, kontrakt ciągły)"),
     "usdpln": ("USDPLN=X", "PLN za 1 USD", "USD/PLN (USDPLN=X)"),
 }
+TICKERS_EN = {  # series -> (jednostka, opis) po angielsku
+    "gold": ("USD/oz", "Gold (COMEX GC=F, continuous contract)"),
+    "silver": ("USD/oz", "Silver (COMEX SI=F, continuous contract)"),
+    "usdpln": ("PLN per 1 USD", "USD/PLN (USDPLN=X)"),
+}
 TIMEOUT = 30
 ATTEMPTS = 3
 
