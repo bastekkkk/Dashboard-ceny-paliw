@@ -10,6 +10,7 @@ import streamlit as st
 import auth
 import db
 import login_ui
+import tab_fuel_clause
 import scheduler
 import ui
 from sources import ara_manual, oilpriceapi, orlen, yahoo
@@ -268,8 +269,8 @@ with k4:
                f"{last['date']:%d.%m.%Y} · tańszy dolar = tańsza ARA w PLN{note}")
 
 st.write("")
-t_over, t_orlen, t_ara, t_prem, t_eu, t_mkt = st.tabs(
-    ["Przegląd", "Hurt ORLEN", "ARA", "Premia", "Stacje UE", "Rynki"]
+t_over, t_fuel, t_orlen, t_ara, t_prem, t_eu, t_mkt = st.tabs(
+    ["Przegląd", "Korekta paliwowa", "Hurt ORLEN", "ARA", "Premia", "Stacje UE", "Rynki"]
 )
 
 # ================================================================ PRZEGLĄD
@@ -430,6 +431,10 @@ with t_over:
                 st.caption(f"Tankowania po drodze: co najmniej {stops} (przy pełnym baku na starcie).")
             st.caption("Średnie krajowe ceny z podatkami z biuletynu KE. Ceny na kartach flotowych i przy autostradach "
                        "oraz odliczenie VAT mogą zmienić wynik.")
+
+# ================================================================ KOREKTA PALIWOWA
+with t_fuel:
+    tab_fuel_clause.render()
 
 # ================================================================ HURT ORLEN
 with t_orlen:

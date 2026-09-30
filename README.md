@@ -46,6 +46,20 @@ Aplikacja startuje zablokowana, dopóki nie dostanie skrótu hasła `APP_PASSWOR
   automatycznie – regulamin zabrania automatycznego użycia danych.
 - Licencja: OilPriceAPI udostępnia notowania ICE **tylko do użytku wewnętrznego** – bez publicznego wyświetlania i redystrybucji.
 
+## Korekta paliwowa (zakładka „Korekta paliwowa”)
+
+Klauzula paliwowa w stawkach przewozowych: `zmiana = średnia indeksu ÷ cena bazowa − 1`,
+`korekta stawki = zmiana × udział paliwa` (0, gdy |zmiana| < próg), `nowa stawka = stawka bazowa × (1 + korekta)`.
+
+- **Indeksy:** hurt ORLEN (PLN/m³, średnia z dni kalendarzowych – cena obowiązuje do kolejnej zmiany) albo ON na stacjach
+  z biuletynu KE dla dowolnego kraju UE / średniej UE (z podatkami lub bez, EUR/l; Polska także PLN/l) – średnia z biuletynów z miesiąca.
+- **Parametry umowy:** cena bazowa (wartość z umowy albo średnia z miesiąca bazowego), udział paliwa %, próg %,
+  tryb progu (pełna zmiana / tylko nadwyżka ponad próg), okres odniesienia (M−1 albo M), stawka bazowa i jednostka.
+- **Szybki kalkulator** – bez zapisu, z historią korekt z 12 miesięcy i wykresem średnich na tle bazy i progu.
+- **Umowy klientów** – tabela edytowalna (SQLite, tabela `fuel_contracts` w `data/prices.db`), zestawienie korekt
+  wszystkich umów na wybrany miesiąc i eksport do Excela. Kopia CSV / wczytanie CSV – na hostingu bez trwałego dysku
+  (Streamlit Community Cloud) baza znika przy restarcie, więc po zmianach pobierz kopię.
+
 ## Źródła i jednostki
 
 | Seria | Źródło | Jednostka | Historia |
@@ -63,7 +77,9 @@ Historia premii: punkt w każdy dzień z notowaniem ARA (Orlen i USD/PLN z tego 
 ## Struktura
 
 ```
-app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, ARA, Premia, Stacje UE, Rynki); czyta tylko z bazy, cache 15 min
+app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Korekta paliwowa, Hurt ORLEN, ARA, Premia, Stacje UE, Rynki); czyta tylko z bazy, cache 15 min
+fuel_clause.py    korekta paliwowa: indeksy, średnie miesięczne, wyliczenie klauzuli, umowy w SQLite
+tab_fuel_clause.py  zakładka „Korekta paliwowa” (kalkulator, umowy klientów, eksport)
 scheduler.py      auto-odświeżanie pon–sob 18:30 (wątek + nadrabianie po uśpieniu)
 auth.py           bramka hasła (scrypt, skrót tylko w sekretach)
 login_ui.py       ekran logowania w barwach ID Logistics (logo: assets/id-logistics-logo.jpg)
