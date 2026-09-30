@@ -86,13 +86,13 @@ w Polsce i średnia UE, ranking krajów UE; zmiany m/m i r/r, wnioski w punktach
 
 ```
 app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, ARA, Premia, Stacje UE, Rynki); czyta tylko z bazy, cache 15 min
-scheduler.py      auto-odświeżanie pon–sob 18:30 (wątek + nadrabianie po uśpieniu) + miesięczna wysyłka raportu
+scheduler.py      auto-odświeżanie pon–sob 18:30 (wątek + nadrabianie po uśpieniu)
 auth.py           bramka hasła (scrypt, skrót tylko w sekretach)
 login_ui.py       ekran logowania w barwach ID Logistics (logo: assets/id-logistics-logo.jpg)
 ui.py             motyw w barwach ID Logistics (granat + czerwień), karty HTML, sparklines, wspólny styl wykresów Plotly
 .streamlit/       config.toml – kolory motywu
 update_data.py    pobieranie Orlen + Yahoo -> SQLite (upsert po serii i dacie)
-report.py         raport miesięczny Fuel Index: Excel, HTML, e-mail (CLI + automatyczna wysyłka ze scheduler.py)
+report.py         raport miesięczny Fuel Index: Excel, HTML, e-mail (CLI + wysyłka raz w miesiącu po odświeżeniu 18:30)
 db.py             SQLite: tabele prices i fetch_log
 sources/          orlen.py, yahoo.py, oilpriceapi.py, ara_manual.py, eu_oil_bulletin.py
 ```
