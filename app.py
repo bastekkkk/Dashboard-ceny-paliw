@@ -10,8 +10,8 @@ import streamlit as st
 import auth
 import db
 import login_ui
-import tab_fuel_clause
 import scheduler
+import tab_fuel_clause
 import ui
 from sources import ara_manual, oilpriceapi, orlen, yahoo
 from sources import eu_oil_bulletin as wob
