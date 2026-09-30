@@ -41,6 +41,9 @@ Aplikacja startuje zablokowana, dopóki nie dostanie skrótu hasła `APP_PASSWOR
 - **Ceny ON w UE** – plik historii Weekly Oil Bulletin KE (~4 MB, od 2005). Nowy biuletyn raz w tygodniu, więc
   skrypt pobiera plik tylko, gdy ostatnie notowanie w bazie ma ≥ 10 dni; przy kolejnych pobraniach nadpisuje ostatnie 8 tygodni
   (KE koryguje dane wstecz). e-petrol.pl pokazuje te same dane, ale blokuje automatyczne pobieranie (Cloudflare).
+  Domyślnie aplikacja pokazuje ceny **bez podatków** (porównywalne między krajami i z ARA); „z podatkami” – przełącznikiem.
+  Nie używamy eurooilwatch.com/api: przepisuje te same dane KE, ale bez cen bez podatków, z opóźnieniem ~1 tygodnia
+  i z historią tylko od 03.2026 (zweryfikowane 30.09.2026).
 - Awaryjnie: wpis ręczny w sekcji 2 (rozwijany formularz) z
   [TradingView ICEEUR:ULS1!](https://www.tradingview.com/symbols/ICEEUR-ULS1!/). TradingView nie jest pobierany
   automatycznie – regulamin zabrania automatycznego użycia danych.
@@ -58,12 +61,13 @@ Aplikacja startuje zablokowana, dopóki nie dostanie skrótu hasła `APP_PASSWOR
 | ON na stacjach, UE-27 + średnie UE/strefa euro | [Weekly Oil Bulletin KE](https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en), arkusze „Prices with taxes” / „Prices wo taxes” | EUR/l (PLN/l kursem z biuletynu) | tygodniowo od 2005-01-03 |
 
 Premia: `ARA [PLN/m³] = USD/t × USD/PLN ÷ 1,1834` (gęstość 0,845 kg/l). Różnica Orlen − ARA zawiera podatki, opłaty, logistykę i marżę.
+Zakładka WOB: benchmark „stacje PL bez podatków” w PLN/m³ (`EUR/l ÷ kurs EUR/PLN z biuletynu × 1000`) vs średnia UE-27 oraz odstęp stacje PL bez podatków − ARA (obie bez podatków, więc zmiany akcyzy/VAT go nie przesuwają).
 Historia premii: punkt w każdy dzień z notowaniem ARA (Orlen i USD/PLN z tego dnia lub ostatniego wcześniejszego notowania). Punkty ze średniej dziennej ARA (import historii) są oznaczone linią kropkowaną.
 
 ## Struktura
 
 ```
-app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, ARA, Premia, Stacje UE, Rynki); czyta tylko z bazy, cache 15 min
+app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, ARA, WOB, Premia, Stacje UE, Rynki, Plan tankowania); czyta tylko z bazy, cache 15 min
 scheduler.py      auto-odświeżanie pon–sob 18:30 (wątek + nadrabianie po uśpieniu)
 auth.py           bramka hasła (scrypt, skrót tylko w sekretach)
 login_ui.py       ekran logowania w barwach ID Logistics (logo: assets/id-logistics-logo.jpg)

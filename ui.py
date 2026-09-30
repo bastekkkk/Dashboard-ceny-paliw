@@ -10,6 +10,7 @@ C = {
     "bg": "#041A33", "card": "#0B2747", "border": "#1D416A", "grid": "#16365B",
     "text": "#F2F6FA", "muted": "#A9BFD6", "faint": "#86A0BE",
     "orlen": "#FF5A4E", "ara": "#6FB4FF", "gold": "#F2C14E", "brand": "#00417B", "red": "#E2322A", "up": "#FF8A7A", "down": "#4FD1B5", "good": "#2FB597", "neutral": "#3A5A80",
+    "wob": "#C39BFF",
 }
 # kategorie na ciemnym tle (kraje na wykresie historii); kolor wg kolejności wyboru
 CATEGORICAL = ["#FF5A4E", "#6FB4FF", "#4FD1B5", "#F2C14E", "#C39BFF", "#FF9DC8", "#9BD35A", "#D9C9A6"]
