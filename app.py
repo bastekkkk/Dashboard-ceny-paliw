@@ -336,7 +336,8 @@ with t_over:
             ui.style_fig(fig, 150, showlegend=False, margin=dict(l=0, r=0, t=6, b=0),
                          xaxis=dict(showgrid=False, tickformat="%d.%m"), yaxis=dict(nticks=3))
             st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
-            st.caption(f"Premia w ostatnich {win_days} dniach; przerywana = średnia {ui.num(avg_p)} PLN/m³.")
+            st.caption(f"Premia w ostatnich {win_days} dniach; przerywana = średnia {ui.num(avg_p)} PLN/m³. "
+                       "Jak czytać premię – zakładka **Premia**.")
 
     c_rank, c_plan = st.columns([2.4, 1], gap="medium")
     eu_countries = [] if eu_last_day is None else [
@@ -482,7 +483,63 @@ with t_ara:
 
 # ================================================================ PREMIA PL vs ARA
 with t_prem:
-    st.subheader("Premia PL vs ARA")
+    st.subheader("Premia PL vs ARA – czym jest i jak ją czytać")
+    last_h = None if hist.empty else hist.iloc[-1]
+    f_orl = "—" if last_h is None else ui.num(last_h["orlen"])
+    f_ara = "—" if last_h is None else ui.num(last_h["ara_pln"])
+    f_prem = "—" if last_h is None else ui.num(last_h["premium"])
+    f_day = "" if last_h is None else f" · {last_h['date']:%d.%m.%Y}"
+    ui.html(f"""
+    <div class="formula">
+      <div class="box"><small>Hurt ORLEN (Ekodiesel, netto){f_day}</small><b class="num">{f_orl}</b><span class="u">PLN/m³</span></div>
+      <div class="op">−</div>
+      <div class="box"><small>Giełda ARA przeliczona na PLN/m³</small><b class="num">{f_ara}</b><span class="u">PLN/m³</span></div>
+      <div class="op">=</div>
+      <div class="box res"><small>Premia PL vs ARA</small><b class="num">{f_prem}</b><span class="u">PLN/m³</span></div>
+    </div>
+    <div class="explain">
+      <div>
+        <h4>Co to jest</h4>
+        <p>Ile więcej kosztuje 1 m³ oleju napędowego w hurcie ORLEN niż ten sam m³ na giełdzie ARA
+        (Amsterdam–Rotterdam–Antwerpia) – europejskim punkcie odniesienia dla cen diesla.</p>
+        <p>ARA notowana jest w USD za tonę, więc przeliczamy ją na PLN/m³:
+        <span class="num">USD/t × kurs USD/PLN ÷ 1,1834</span> (1 t ON ≈ 1 183 l).</p>
+      </div>
+      <div>
+        <h4>Jak czytać</h4>
+        <p>Nie patrz na samą wysokość premii, tylko na to, jak ma się do <b>swojej średniej</b>
+        (przerywana linia na wykresie):</p>
+        <div class="scale">
+          <div><i style="background:{C['up']}"></i><span><b>Powyżej średniej</b> – hurt ORLEN drogi względem rynku. Jest przestrzeń do obniżki; nie kupuj dużo na zapas.</span></div>
+          <div><i style="background:{C['muted']}"></i><span><b>Blisko średniej</b> (±2%) – wycena typowa.</span></div>
+          <div><i style="background:{C['down']}"></i><span><b>Poniżej średniej</b> – hurt tani względem rynku; względnie korzystny moment na większy zakup.</span></div>
+        </div>
+      </div>
+      <div>
+        <h4>Na co uważać</h4>
+        <ul>
+          <li>Premia to <b>nie jest marża ORLEN-u</b>. Duża część to podatki i opłaty zawarte w cenie hurtowej:
+          akcyza, opłata paliwowa i zapasowa. Do tego logistyka i marża. VAT nie jest wliczony.</li>
+          <li>Przy zmianie akcyzy lub opłaty paliwowej (zwykle od 1 stycznia) premia przesuwa się skokowo –
+          porównuj okresy po tej samej stronie zmiany.</li>
+          <li>ORLEN reaguje na giełdę z opóźnieniem, więc skok premii często oznacza, że ORLEN „jeszcze nie nadążył” za rynkiem.</li>
+        </ul>
+      </div>
+    </div>""")
+    with st.expander("Słowniczek pojęć"):
+        st.markdown(
+            "- **Ekodiesel ORLEN (hurt)** – cena hurtowa oleju napędowego publikowana przez ORLEN, w PLN za m³, "
+            "bez VAT, dla paliwa w temperaturze 15°C. Obowiązuje do kolejnej zmiany cennika.\n"
+            "- **ARA** – rejon portów Amsterdam–Rotterdam–Antwerpia, główny hub paliwowy Europy Zachodniej.\n"
+            "- **ICE Low Sulphur Gasoil** – notowany na giełdzie ICE kontrakt na olej napędowy z dostawą w ARA, "
+            "w USD za tonę. To ta „giełda” na wykresie.\n"
+            "- **Przeliczenie t → m³** – przy gęstości 0,845 kg/l tona ON to ok. 1 183 l, czyli 1,1834 m³.\n"
+            "- **Średnia** – na wykresie poniżej: średnia premii w wybranym zakresie; w „Sygnale dnia” na Przeglądzie: "
+            "średnia z ostatnich 90 dni.\n"
+            "- **Linia kropkowana** – punkty, w których ARA to średnia dzienna z importu historii, a nie cena "
+            "zamknięcia; porównuj je ostrożnie."
+        )
+    st.write("")
     if hist.empty:
         st.info("Premia niedostępna: brak notowań ARA, Orlen lub USD/PLN.")
     else:
@@ -493,12 +550,8 @@ with t_prem:
         if fx_row is None or orl_row is None:
             st.info(f"Brak notowania USD/PLN lub Orlen na dzień {d:%Y-%m-%d} lub wcześniej.")
         else:
-            ara_pln = ara_last["value"] * fx_row["value"] / M3_PER_T
-            c1, c2, c3 = st.columns(3)
-            c1.metric("ARA w PLN/m³ netto", f"{ara_pln:,.0f} PLN/m³".replace(",", " "))
-            c2.metric("Orlen Ekodiesel", f"{orl_row['value']:,.0f} PLN/m³ netto".replace(",", " "))
-            c3.metric("Różnica Orlen − ARA", f"{orl_row['value'] - ara_pln:+,.0f} PLN/m³".replace(",", " "))
             st.caption(
+                "Wyliczenie powyżej: "
                 f"ARA {ara_last['value']:.2f} USD/t ({d:%Y-%m-%d}) × USD/PLN {fx_row['value']:.4f} ({fx_row['date']:%Y-%m-%d}) "
                 f"÷ {M3_PER_T} m³/t (gęstość 0,845 kg/l). Orlen z {orl_row['date']:%Y-%m-%d}. "
                 "Różnica obejmuje m.in. podatki i opłaty (akcyza, opłata paliwowa, zapasowa), logistykę i marżę – "

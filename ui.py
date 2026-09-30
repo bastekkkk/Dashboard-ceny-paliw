@@ -70,6 +70,22 @@ h2, h3 { letter-spacing: -0.01em; }
 .stops span { padding: 6px 10px; border-radius: 8px; }
 .card-title { margin: 0 0 2px; font-size: 18px; font-weight: 600; color: #F2F6FA; }
 .card-sub { margin: 0 0 8px; font-size: 13px; color: #A9BFD6; }
+.formula { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; margin: 4px 0 18px; }
+.formula .box { flex: 1 1 180px; background: #0B2747; border: 1px solid #1D416A; border-radius: 12px; padding: 12px 16px; }
+.formula .box.res { border: 1.5px solid #E2322A; }
+.formula .box small { display: block; font-size: 12px; color: #A9BFD6; margin-bottom: 2px; }
+.formula .box b { font-size: 22px; font-weight: 600; color: #F2F6FA; }
+.formula .box span.u { font-size: 12px; color: #A9BFD6; margin-left: 4px; }
+.formula .op { display: flex; align-items: center; font-size: 26px; color: #A9BFD6; padding: 0 2px; }
+.explain { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 8px; }
+.explain > div { background: #0B2747; border: 1px solid #1D416A; border-radius: 14px; padding: 16px 18px; }
+.explain h4 { margin: 0 0 8px; padding: 0; font-size: 15px; font-weight: 700; color: #F2F6FA; }
+.explain p, .explain li { margin: 0 0 6px; font-size: 14px; line-height: 1.5; color: #D3DFEC; }
+.explain ul { margin: 0; padding-left: 18px; }
+.scale { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.scale div { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4; color: #D3DFEC; }
+.scale i { flex-shrink: 0; margin-top: 3px; width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+@media (max-width: 900px) { .explain { grid-template-columns: 1fr; } }
 @media (max-width: 640px) {
   .rank .r { grid-template-columns: 1fr 56px 90px; }
   .rank .track { display: none; }
@@ -85,7 +101,7 @@ def inject_css() -> None:
 
 def html(markup: str) -> None:
     """Wstawia HTML bez wcięć (markdown traktowałby wcięte linie jako blok kodu)."""
-    st.markdown("".join(line.strip() for line in markup.splitlines()), unsafe_allow_html=True)
+    st.markdown(" ".join(line.strip() for line in markup.splitlines() if line.strip()), unsafe_allow_html=True)
 
 
 def num(value: float, decimals: int = 0, sign: bool = False) -> str:
