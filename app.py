@@ -153,6 +153,29 @@ def premium_history(ara: pd.DataFrame, orl: pd.DataFrame, fx: pd.DataFrame) -> p
     return df
 
 
+ARCHIVE_MONTHS = 24
+MONTHS_PL = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"]
+
+
+def monthly_averages(df: pd.DataFrame, months: int) -> pd.DataFrame:
+    """Średnie miesięczne ważone dniami: cena obowiązuje od notowania do kolejnej zmiany (ffill na każdy dzień
+    do dziś). Ostatnie `months` pełnych miesięcy + bieżący (partial=True)."""
+    s = df.set_index("date")["value"].sort_index()
+    s = s[~s.index.duplicated(keep="last")]
+    today = pd.Timestamp(date.today())
+    daily = s.reindex(pd.date_range(s.index.min(), max(today, s.index.max()), freq="D")).ffill()
+    this_month = today.to_period("M")
+    start = (this_month - months - 1).to_timestamp()  # +1 miesiąc wstecz tylko do zmiany m/m
+    daily = daily[daily.index >= start]
+    m = daily.groupby(daily.index.to_period("M")).agg(["mean", "min", "max"])
+    m["diff"] = m["mean"].diff()
+    m["pct"] = m["mean"].pct_change()
+    m = m.iloc[1:]
+    m["partial"] = m.index == this_month
+    m["label"] = [f"{MONTHS_PL[p.month - 1]} {p.year}" for p in m.index]
+    return m.reset_index(drop=True)
+
+
 def premium_window(hist: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     """Punkty premii z ostatnich PREMIUM_WINDOW_DAYS dni i faktyczna liczba dni, które obejmują."""
     last = hist["date"].max()
@@ -389,6 +412,45 @@ with t_orlen:
             f"Historia z API Orlenu od {orlen_full['date'].min():%Y-%m-%d} ({len(orlen_full)} notowań). "
             "Wg Orlenu: cena bez VAT, za paliwo w temperaturze referencyjnej 15°C; akcyza, opłata paliwowa i zapasowa "
             "wymienione jako składniki kształtujące cenę hurtową. Notowanie obowiązuje do kolejnej zmiany."
+        )
+
+        st.markdown("#### Archiwum – średnie miesięczne (24 pełne miesiące + bieżący)")
+        arch = monthly_averages(orlen_full, ARCHIVE_MONTHS)
+        partial = arch["partial"]
+        fig = go.Figure(go.Bar(
+            x=arch["label"], y=arch["mean"], marker=dict(color=C["orlen"], opacity=[0.45 if p else 1.0 for p in partial]),
+            customdata=arch[["min", "max", "diff"]].to_numpy(),
+            hovertemplate="%{x}<br>średnia %{y:,.0f} PLN/m³<br>min %{customdata[0]:,.0f} · max %{customdata[1]:,.0f}"
+                          "<br>m/m %{customdata[2]:+,.0f}<extra></extra>",
+        ))
+        ui.style_fig(fig, 340, yaxis=dict(title="PLN/m³", rangemode="tozero"),  # słupki od zera – długość = cena
+                     xaxis=dict(type="category", tickangle=-45), showlegend=False)
+        st.plotly_chart(fig, width="stretch")
+
+        table = pd.DataFrame({
+            "Miesiąc": arch["label"] + arch["partial"].map({True: " (w toku)", False: ""}),
+            "Średnia [PLN/m³]": arch["mean"].round(0),
+            "Średnia [PLN/l]": (arch["mean"] / 1000).round(3),
+            "Zmiana m/m [PLN/m³]": arch["diff"].round(0),
+            "Zmiana m/m [%]": (arch["pct"] * 100).round(1),
+            "Min [PLN/m³]": arch["min"].round(0),
+            "Max [PLN/m³]": arch["max"].round(0),
+        }).iloc[::-1]
+        nc = st.column_config.NumberColumn
+        st.dataframe(table, hide_index=True, width="stretch", height=38 + 35 * min(len(table), 12), column_config={
+            "Średnia [PLN/m³]": nc(format="%.0f"), "Średnia [PLN/l]": nc(format="%.3f"),
+            "Zmiana m/m [PLN/m³]": nc(format="%+.0f"), "Zmiana m/m [%]": nc(format="%+.1f"),
+            "Min [PLN/m³]": nc(format="%.0f"), "Max [PLN/m³]": nc(format="%.0f"),
+        })
+        st.download_button(
+            "Pobierz archiwum (CSV do Excela)", icon=":material/download:",
+            data=table.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
+            file_name=f"orlen_ekodiesel_srednie_miesieczne_{date.today():%Y-%m-%d}.csv", mime="text/csv",
+        )
+        st.caption(
+            "Średnia ważona dniami: notowanie obowiązuje do kolejnej zmiany, więc każdy dzień miesiąca liczy się "
+            "po cenie, która w nim obowiązywała (nie średnia z samych zmian cennika). Ceny netto (bez VAT), PLN/m³ w 15°C. "
+            "Bieżący miesiąc – do dziś, jaśniejszy słupek."
         )
 
 # ================================================================ ARA
