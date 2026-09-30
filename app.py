@@ -322,8 +322,8 @@ with k4:
                f"{last['date']:%d.%m.%Y} · tańszy dolar = tańsza ARA w PLN{note}")
 
 st.write("")
-t_over, t_orlen, t_ara, t_wob, t_prem, t_eu, t_mkt, t_plan = st.tabs(
-    ["Przegląd", "Hurt ORLEN", "ARA", "WOB", "Premia", "Stacje UE", "Rynki", "Plan tankowania"]
+t_over, t_orlen, t_wob, t_ara, t_prem, t_eu, t_mkt, t_plan = st.tabs(
+    ["Przegląd", "Hurt ORLEN", "WOB", "ARA", "Premia", "Stacje UE", "Rynki", "Plan tankowania"]
 )
 
 # ================================================================ PRZEGLĄD
