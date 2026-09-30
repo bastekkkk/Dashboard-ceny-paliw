@@ -7,7 +7,7 @@ import streamlit as st
 
 import db
 import update_data
-from sources import ara_manual, orlen, yahoo
+from sources import ara_manual, oilpriceapi, orlen, yahoo
 
 M3_PER_T = 1.1834  # 1 t / 0,845 kg/l = 1183,4 l
 PRESETS = {"7D": 7, "1M": 30, "3M": 91, "6M": 182, "1Y": 365, "MAX": None}
@@ -93,6 +93,20 @@ def series_section(series: str, title: str, unit: str, decimals: int = 2, show_w
             st.info("Brak notowań w wybranym zakresie.")
         else:
             line_chart(part, title, unit)
+    return df
+
+
+def premium_history(ara: pd.DataFrame, orl: pd.DataFrame, fx: pd.DataFrame) -> pd.DataFrame:
+    """Premia na każdy dzień notowania ARA. Orlen i USD/PLN = ostatnie notowanie z tego dnia lub wcześniej
+    (Orlen obowiązuje do kolejnej zmiany). Bez notowania w oknie tolerancji punkt jest pomijany, nie uzupełniany."""
+    base = ara[["date", "value", "source"]].rename(columns={"value": "ara_usd", "source": "ara_source"})
+    fx_ = fx[["date", "value"]].rename(columns={"value": "fx"}).assign(fx_date=fx["date"])
+    orl_ = orl[["date", "value"]].rename(columns={"value": "orlen"}).assign(orlen_date=orl["date"])
+    df = pd.merge_asof(base.sort_values("date"), fx_.sort_values("date"), on="date", tolerance=pd.Timedelta(days=5))
+    df = pd.merge_asof(df, orl_.sort_values("date"), on="date", tolerance=pd.Timedelta(days=7))
+    df = df.dropna(subset=["fx", "orlen"])
+    df["ara_pln"] = df["ara_usd"] * df["fx"] / M3_PER_T
+    df["premium"] = df["orlen"] - df["ara_pln"]
     return df
 
 
@@ -235,4 +249,45 @@ else:
             f"÷ {M3_PER_T} m³/t (gęstość 0,845 kg/l). Orlen z {orl_row['date']:%Y-%m-%d}. "
             "Różnica obejmuje m.in. podatki i opłaty (akcyza, opłata paliwowa, zapasowa), logistykę i marżę – "
             "to nie jest czysta marża rafinerii."
+        )
+
+    st.subheader("Historia premii")
+    hist = premium_history(ara_df, orlen_df, fx_df)
+    rng = range_picker("premium")
+    part = in_range(hist, rng) if rng else hist.iloc[0:0]
+    if rng and part.empty:
+        st.info("Brak punktów premii w wybranym zakresie.")
+    elif not part.empty:
+        avg = part["premium"].mean()
+        now = part.iloc[-1]
+        c1, c2, c3 = st.columns(3)
+        c1.metric(f"Premia {now['date']:%Y-%m-%d}", f"{now['premium']:+,.0f} PLN/m³".replace(",", " "))
+        c2.metric("Średnia w zakresie", f"{avg:+,.0f} PLN/m³".replace(",", " "))
+        c3.metric("Bieżąca vs średnia", f"{now['premium'] - avg:+,.0f} PLN/m³".replace(",", " "))
+
+        fig = go.Figure()
+        is_avg = part["ara_source"] == oilpriceapi.SOURCE_AVG
+        for mask, label, dash in [(is_avg, "ARA = średnia dzienna (import historii)", "dot"),
+                                  (~is_avg, "ARA = ostatnia cena dnia / wpis ręczny", "solid")]:
+            seg = part[mask]
+            if seg.empty:
+                continue
+            fig.add_trace(go.Scatter(
+                x=seg["date"], y=seg["premium"], name=label, mode="lines+markers",
+                line=dict(width=2, color=COLORS["single"], dash=dash), marker=dict(size=8),
+                customdata=seg[["orlen", "ara_pln", "ara_usd", "fx"]].to_numpy(),
+                hovertemplate="%{x|%Y-%m-%d}<br>Premia %{y:+,.0f} PLN/m³<br>Orlen %{customdata[0]:,.0f} − "
+                              "ARA %{customdata[1]:,.0f} PLN/m³<br>(ARA %{customdata[2]:,.2f} USD/t × USD/PLN "
+                              "%{customdata[3]:.4f})<extra>" + label + "</extra>",
+            ))
+        fig.add_hline(y=avg, line=dict(width=1, dash="dash", color="gray"),
+                      annotation_text=f"średnia {avg:,.0f}".replace(",", " "), annotation_position="top left")
+        fig.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10), yaxis_title="Premia [PLN/m³]",
+                          hovermode="closest", legend=dict(orientation="h", y=1.1))
+        st.plotly_chart(fig, width="stretch")
+        n_avg = int(is_avg.sum())
+        st.caption(
+            f"{len(part)} punktów w zakresie"
+            + (f", w tym {n_avg} liczonych ze średniej dziennej ARA (linia kropkowana) – porównuj je ostrożnie" if n_avg else "")
+            + ". Punkt tylko w dni z notowaniem ARA; Orlen i USD/PLN z tego dnia lub ostatniego wcześniejszego notowania."
         )

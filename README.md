@@ -38,6 +38,7 @@ python -m venv .venv && export OILPRICEAPI_KEY=twoj_klucz   # Windows: setx OILP
 | USD/PLN | Yahoo Finance `USDPLN=X` | PLN za 1 USD | od 2003-12-01 |
 
 Premia: `ARA [PLN/m³] = USD/t × USD/PLN ÷ 1,1834` (gęstość 0,845 kg/l). Różnica Orlen − ARA zawiera podatki, opłaty, logistykę i marżę.
+Historia premii: punkt w każdy dzień z notowaniem ARA (Orlen i USD/PLN z tego dnia lub ostatniego wcześniejszego notowania). Punkty ze średniej dziennej ARA (import historii) są oznaczone linią kropkowaną.
 
 ## Struktura
 
