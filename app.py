@@ -1197,9 +1197,9 @@ with t_eu:
 
 # ================================================================ RYNKI: złoto / srebro / USD/PLN / JPY/PLN / Brent
 with t_mkt:
-    st.subheader("Złoto, srebro, ropa Brent, USD/PLN, JPY/PLN")
+    st.subheader("Złoto, srebro, USD/PLN, ropa Brent, JPY/PLN")
     frames = {}
-    tickers = list(yahoo.TICKERS)  # po 3 w rzędzie: surowce, potem waluty – w 5 kolumnach wartości się ucinają
+    tickers = list(yahoo.TICKERS)  # po 3 w rzędzie – w 5 kolumnach wartości się ucinają
     cols = [c for i in range(0, len(tickers), 3) for c in st.columns(3)][:len(tickers)]
     for col, series in zip(cols, tickers):
         _, unit, label = yahoo.TICKERS[series]
