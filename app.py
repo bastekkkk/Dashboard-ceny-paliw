@@ -642,7 +642,9 @@ with t_eu:
       <div class="op">+</div>
       <div class="box"><small>Podatki i opłaty: akcyza, opłaty, VAT</small><b class="num">{f_t}</b><span class="u">{eu_unit}</span>
         <span class="u">{f_share}</span></div>
-    </div>
+    </div>""")
+    with st.expander("Skąd są te dane i co znaczy „z podatkami”"):
+        ui.html("""
     <div class="explain">
       <div>
         <h4>Skąd są te dane</h4>
