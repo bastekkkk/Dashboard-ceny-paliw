@@ -13,6 +13,8 @@ import time
 
 import streamlit as st
 
+import login_ui
+
 MAX_ATTEMPTS = 5  # na sesję przeglądarki
 GLOBAL_MAX_FAILS = 30  # na cały serwer w oknie GLOBAL_WINDOW_S (nowa karta nie resetuje limitu)
 GLOBAL_WINDOW_S = 15 * 60
@@ -63,28 +65,41 @@ def require_password() -> None:
     if st.session_state.get("auth_ok"):
         return
     stored = _stored_hash()
-    _, mid, _ = st.columns([1, 1.2, 1])
-    with mid:
-        st.markdown("### Ceny paliw")
+    left, _, right = st.columns([1.5, 0.08, 1], vertical_alignment="top")
+    with left:
+        login_ui.hero()
+    with right:
+        login_ui.form_header()
         if not stored:
-            st.error("Dostęp zablokowany: brak APP_PASSWORD_HASH w sekretach aplikacji (patrz README).")
+            login_ui.error("Dostęp zablokowany: brak APP_PASSWORD_HASH w sekretach aplikacji (patrz README).")
+            login_ui.footer()
             st.stop()
         attempts = st.session_state.get("auth_attempts", 0)
         if attempts >= MAX_ATTEMPTS or len(_recent_fails()) >= GLOBAL_MAX_FAILS:
-            st.error("Za dużo nieudanych prób. Odśwież stronę za kilka minut.")
+            login_ui.error("Za dużo nieudanych prób. Spróbuj ponownie za 15 minut.")
+            login_ui.footer()
             st.stop()
-        with st.form("login"):
-            pwd = st.text_input("Hasło", type="password", autocomplete="current-password")
-            ok = st.form_submit_button("Zaloguj", type="primary", width="stretch")
+        with st.form("login", border=False):
+            pwd = st.text_input("Hasło", type="password", autocomplete="current-password", placeholder="Wpisz hasło")
+            ok = st.form_submit_button("Zaloguj  →", width="stretch")
         if ok:
-            if verify(pwd, stored):
+            if not pwd:
+                login_ui.error("Wpisz hasło.")
+            elif verify(pwd, stored):
                 st.session_state["auth_ok"] = True
                 st.session_state.pop("auth_attempts", None)
                 st.rerun()
-            st.session_state["auth_attempts"] = attempts + 1
-            _recent_fails().append(time.time())
-            time.sleep(1.5)  # spowalnia zgadywanie
-            st.error("Nieprawidłowe hasło.")
+            else:
+                st.session_state["auth_attempts"] = attempts + 1
+                _recent_fails().append(time.time())
+                time.sleep(1.5)  # spowalnia zgadywanie
+                left_n = MAX_ATTEMPTS - attempts - 1
+                login_ui.error("Nieprawidłowe hasło. " + (
+                    "To była ostatnia próba." if left_n <= 0 else
+                    "Pozostała 1 próba." if left_n == 1 else
+                    f"Pozostały {left_n} próby." if left_n <= 4 else f"Pozostało {left_n} prób."
+                ))
+        login_ui.footer()
     st.stop()
 
 

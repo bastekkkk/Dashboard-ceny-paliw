@@ -8,6 +8,7 @@ import streamlit as st
 
 import auth
 import db
+import login_ui
 import ui
 import update_data
 from sources import ara_manual, oilpriceapi, orlen, yahoo
@@ -691,3 +692,6 @@ with t_mkt:
             st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
         else:
             st.info("Brak notowań w wybranym zakresie.")
+
+st.divider()
+st.caption(f"Autor aplikacji: **{login_ui.AUTHOR}** · ID Logistics – narzędzie wewnętrzne")

@@ -59,6 +59,7 @@ Historia premii: punkt w każdy dzień z notowaniem ARA (Orlen i USD/PLN z tego 
 ```
 app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, ARA, Premia, Stacje UE, Rynki); czyta tylko z bazy, cache 15 min
 auth.py           bramka hasła (scrypt, skrót tylko w sekretach)
+login_ui.py       ekran logowania w barwach ID Logistics (logo: assets/id-logistics-logo.jpg)
 ui.py             motyw (ciemny), karty HTML, sparklines, wspólny styl wykresów Plotly
 .streamlit/       config.toml – kolory motywu
 update_data.py    pobieranie Orlen + Yahoo -> SQLite (upsert po serii i dacie)
