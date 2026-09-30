@@ -61,6 +61,15 @@ def load_eu(variant: str, pln: bool) -> pd.DataFrame:
     return wide
 
 
+def wob_series(variant: str, code: str, unit: str) -> pd.Series:
+    """Jedna seria z biuletynu KE (indeks = data biuletynu) w EUR/l, PLN/l albo PLN/m³ (kurs z tego samego biuletynu)."""
+    wide = load_eu(variant, unit != "EUR/l")
+    if wide.empty or code not in wide:
+        return pd.Series(dtype=float, index=pd.DatetimeIndex([]))  # pusty, ale z indeksem dat (filtry .index.date)
+    s = wide[code].dropna()
+    return s * 1000 if unit == "PLN/m³" else s
+
+
 def source_warning(series: str) -> None:
     """Pokazuje błąd ostatniego pobrania danej serii (pozostałe sekcje działają dalej)."""
     status = db.last_fetch(series)
@@ -202,6 +211,8 @@ orlen_df = load(orlen.SERIES)
 ara_df = load(ara_manual.SERIES)
 fx_df = load("usdpln")
 eu_now = load_eu("brutto", False)
+wob_pl = wob_series("netto", "PL", "PLN/m³")  # benchmark: stacje PL bez podatków, PLN/m³
+wob_eu = wob_series("netto", "EU", "PLN/m³")
 hist = premium_history(ara_df, orlen_df, fx_df) if not (ara_df.empty or orlen_df.empty or fx_df.empty) else pd.DataFrame()
 
 # ---------------------------------------------------------------- nagłówek
@@ -253,7 +264,7 @@ if results := st.session_state.pop("refresh_results", None):
             st.markdown(f"{'✓' if ok else '✗'} **{series}** – {msg}")
 
 # ---------------------------------------------------------------- kafelki KPI
-k1, k2, k3, k4 = st.columns(4)
+k1, k2, k5, k3, k4 = st.columns(5)
 with k1:
     if orlen_df.empty:
         ui.kpi_empty("Ekodiesel ORLEN · hurt", "Kliknij „Odśwież dane”.", C["orlen"])
@@ -275,6 +286,19 @@ with k2:
         ui.kpi("ARA · ICE LS Gasoil", ui.num(last["value"], 2), "USD/t", delta,
                ui.sparkline(ara_df["value"].tail(30), C["ara"]),
                f"{pln}{last['date']:%d.%m.%Y}{avg_src}{note}", dot=C["ara"])
+with k5:
+    if wob_pl.empty:
+        ui.kpi_empty("Stacje PL · bez podatków", "Brak biuletynu KE – kliknij „Odśwież dane”.", C["wob"])
+    else:
+        w_day, w_val = wob_pl.index[-1], wob_pl.iloc[-1]
+        delta = "" if len(wob_pl) < 2 else ui.delta_html(w_val - wob_pl.iloc[-2], w_val / wob_pl.iloc[-2] - 1, 0, "t/t")
+        eu_txt = ""
+        if w_day in wob_eu.index:
+            eu_v = wob_eu[w_day]
+            eu_txt = f"UE-27 {ui.num(eu_v)} ({ui.num((w_val / eu_v - 1) * 100, 1, sign=True)}%) · "
+        ui.kpi("Stacje PL · bez podatków", ui.num(w_val), "PLN/m³", delta,
+               ui.sparkline(wob_pl.tail(26), C["wob"]),
+               f"{eu_txt}biuletyn KE {w_day:%d.%m.%Y}", dot=C["wob"])
 with k3:
     if hist.empty:
         ui.kpi_empty("Premia PL vs ARA", "Wymaga notowań ARA, ORLEN i USD/PLN.")
@@ -298,29 +322,34 @@ with k4:
                f"{last['date']:%d.%m.%Y} · tańszy dolar = tańsza ARA w PLN{note}")
 
 st.write("")
-t_over, t_orlen, t_ara, t_prem, t_eu, t_mkt, t_plan = st.tabs(
-    ["Przegląd", "Hurt ORLEN", "ARA", "Premia", "Stacje UE", "Rynki", "Plan tankowania"]
+t_over, t_orlen, t_ara, t_wob, t_prem, t_eu, t_mkt, t_plan = st.tabs(
+    ["Przegląd", "Hurt ORLEN", "ARA", "WOB", "Premia", "Stacje UE", "Rynki", "Plan tankowania"]
 )
 
 # ================================================================ PRZEGLĄD
 with t_over:
     c_chart, c_side = st.columns([2.4, 1], gap="medium")
     with c_chart, st.container(border=True):
-        ui.card_title("Hurt ORLEN vs giełda ARA", "PLN/m³ netto · pole między liniami = premia PL")
+        ui.card_title("Hurt ORLEN vs giełda ARA",
+                      "PLN/m³ netto · pole między liniami = premia PL · fioletowa = stacje PL bez podatków")
         rng = range_picker("over", default="1Y")
         if orlen_df.empty:
             st.info("Brak notowań ORLEN w bazie.")
         elif rng:
             orl_part = in_range(orlen_df, rng)
             h_part = in_range(hist, rng) if not hist.empty else hist
+            w_part = wob_pl[(wob_pl.index.date >= rng[0]) & (wob_pl.index.date <= rng[1])]
             ui.legend([
                 ("step", C["orlen"], "<b>Hurt ORLEN</b> (Ekodiesel, netto) – schodki, bo cena obowiązuje do kolejnej zmiany cennika"),
                 ("line", C["ara"], "<b>Giełda ARA</b> przeliczona na PLN/m³ (USD/t × USD/PLN ÷ 1,1834)"),
                 ("area", C["orlen"], "<b>Pole między liniami = premia PL</b> – o ile hurt ORLEN jest droższy od giełdy"),
+                ("line-markers", C["wob"], "<b>Stacje PL bez podatków</b> – Weekly Oil Bulletin KE, co tydzień (poniedziałek)"),
             ], [
                 "Pole się <b>rozszerza</b> – ORLEN drożeje względem giełdy (lub nie nadąża za jej spadkiem).",
                 "Pole się <b>zwęża</b> – hurt tanieje względem giełdy.",
                 "ORLEN reaguje na ARA z opóźnieniem – spadek niebieskiej linii zwykle zapowiada obniżkę w hurcie.",
+                "Fioletowa leży <b>poniżej</b> ORLEN, bo hurt zawiera akcyzę i opłatę paliwową, a cena bez podatków – nie. "
+                "Porównuj ją z <b>ARA</b> (obie bez podatków): odstęp = logistyka i marże – szczegóły w zakładce <b>WOB</b>.",
                 RANGE_TIP,
             ])
             fig = go.Figure()
@@ -338,6 +367,12 @@ with t_over:
                 x=orl_part["date"], y=orl_part["value"], name="Ekodiesel ORLEN", mode="lines", line_shape="hv",
                 line=dict(width=2.2, color=C["orlen"]), hovertemplate="ORLEN %{y:,.0f} PLN/m³<extra></extra>",
             ))
+            if not w_part.empty:
+                fig.add_trace(go.Scatter(
+                    x=w_part.index, y=w_part.values, name="Stacje PL bez podatków (WOB)", mode="lines+markers",
+                    line=dict(width=1.8, color=C["wob"]), marker=dict(size=4),
+                    hovertemplate="Stacje PL bez podatków %{y:,.0f} PLN/m³<extra></extra>",
+                ))
             ui.style_fig(fig, 400, hovermode="x unified", yaxis_title="PLN/m³",
                          legend=dict(orientation="h", y=1.08, x=0))
             st.plotly_chart(fig, width="stretch")
@@ -395,11 +430,21 @@ with t_over:
             ui.card_title("Olej napędowy na stacjach w UE")
             st.info("Brak danych biuletynu KE w bazie. Kliknij „Odśwież dane”.")
         else:
-            now_eu = eu_now.loc[eu_last_day]
-            ui.card_title("Olej napędowy na stacjach w UE",
-                          f"Weekly Oil Bulletin KE z {eu_last_day:%d.%m.%Y} · EUR/l z podatkami · od najtańszego")
-            t_all, t_leg = st.columns([4, 1], vertical_alignment="center")
+            head = st.container()
+            t_var, t_all, t_leg = st.columns([2, 2, 1], vertical_alignment="center")
+            rank_variant = t_var.segmented_control(
+                "Cena", list(wob.LABELS), default="netto", key="rank_variant",
+                format_func=wob.LABELS.get, label_visibility="collapsed",
+            ) or "netto"
             show_all = t_all.toggle("Wszystkie kraje UE", key="rank_all")
+            rank_eu = load_eu(rank_variant, False)
+            rank_day = rank_eu["PL"].dropna().index.max() if "PL" in rank_eu else eu_last_day
+            now_eu = rank_eu.loc[rank_day] if not rank_eu.empty else eu_now.loc[eu_last_day]
+            eu_countries_r = [c for c in now_eu.dropna().index if c not in wob.AVERAGES]
+            with head:
+                ui.card_title("Olej napędowy na stacjach w UE",
+                              f"Weekly Oil Bulletin KE z {rank_day:%d.%m.%Y} · EUR/l "
+                              f"{wob.LABELS[rank_variant].lower()} · od najtańszego")
             with t_leg:
                 ui.legend([
                     ("bar", C["orlen"], "<b>Polska</b> – punkt odniesienia"),
@@ -411,7 +456,7 @@ with t_over:
                     "Słupki nie startują od zera – porównuj różnice między krajami, nie długości.",
                     "„Wszystkie kraje UE” – pełna lista zamiast krajów tranzytowych.",
                 ])
-            codes = eu_countries if show_all else [c for c in TRANSIT if c in eu_countries]
+            codes = eu_countries_r if show_all else [c for c in TRANSIT if c in eu_countries_r]
             ranked = now_eu[codes].sort_values()
             pl = now_eu["PL"]
             lo = max(0.0, (ranked.min() * 10 // 1) / 10 - 0.1)
@@ -434,7 +479,9 @@ with t_over:
             ui.html("".join(rows) + "</div>")
             st.caption(f"Słupki od {ui.num(lo, 1)} EUR/l – porównuj różnice, nie długości od zera. "
                        "„vs PL” = ile więcej (+) lub mniej (−) zapłacisz za 1000 l niż w Polsce przy średniej krajowej cenie. "
-                       "Oszczędność na konkretnej trasie policzysz w zakładce **Plan tankowania**.")
+                       "Oszczędność na konkretnej trasie policzysz w zakładce **Plan tankowania**."
+                       + (" Wariant „Bez podatków” porównuje samo paliwo (produkt, logistyka, marża); "
+                          "ile faktycznie zapłacisz na stacji – przełącz na „Z podatkami”." if rank_variant == "netto" else ""))
 
 # ================================================================ HURT ORLEN
 with t_orlen:
@@ -597,6 +644,186 @@ with t_ara:
             + ". Dni świąteczne ICE są liczone jako braki."
         )
 
+# ================================================================ WOB – benchmark cen na stacjach
+with t_wob:
+    st.subheader("Weekly Oil Bulletin – ceny ON na stacjach (benchmark)")
+    source_warning(wob.LOG_SERIES)
+    c1, c2 = st.columns(2)
+    w_variant = c1.segmented_control("Cena", list(wob.LABELS), default="netto", key="wob_variant",
+                                     format_func=wob.LABELS.get) or "netto"
+    w_unit = c2.segmented_control("Jednostka", ["PLN/m³", "EUR/l"], default="PLN/m³", key="wob_unit") or "PLN/m³"
+    w_dec = 0 if w_unit == "PLN/m³" else 3
+    w_pl, w_eu = wob_series(w_variant, "PL", w_unit), wob_series(w_variant, "EU", w_unit)
+    w_last = None if w_pl.empty else w_pl.index[-1]
+    w_eu_ok = w_last is not None and w_last in w_eu.index
+    f_pl = "—" if w_last is None else ui.num(w_pl.iloc[-1], w_dec)
+    f_eu = ui.num(w_eu[w_last], w_dec) if w_eu_ok else "—"
+    f_diff = ui.num(w_pl.iloc[-1] - w_eu[w_last], w_dec, sign=True) if w_eu_ok else "—"
+    f_pct = f"{ui.num((w_pl.iloc[-1] / w_eu[w_last] - 1) * 100, 1, sign=True)}%" if w_eu_ok else ""
+    f_day = "" if w_last is None else f" · {w_last:%d.%m.%Y}"
+    w_lbl = wob.LABELS[w_variant].lower()
+    ui.html(f"""
+    <div class="formula">
+      <div class="box"><small>Polska – stacje, {w_lbl}{f_day}</small><b class="num">{f_pl}</b><span class="u">{w_unit}</span></div>
+      <div class="op">−</div>
+      <div class="box"><small>Średnia UE-27 (ważona), {w_lbl}</small><b class="num">{f_eu}</b><span class="u">{w_unit}</span></div>
+      <div class="op">=</div>
+      <div class="box res"><small>Polska vs średnia UE</small><b class="num">{f_diff}</b><span class="u">{w_unit}</span>
+        <span class="u">{f_pct}</span></div>
+    </div>""")
+    with st.expander("Czym jest Weekly Oil Bulletin i jak to czytać"):
+        ui.html(f"""
+    <div class="explain">
+      <div>
+        <h4>Co to jest</h4>
+        <p><b>Weekly Oil Bulletin</b> (WOB) Komisji Europejskiej – oficjalne średnie krajowe ceny paliw na stacjach
+        we wszystkich krajach UE-27. Stan na poniedziałek, publikacja zwykle w czwartek, historia od 2005 r.</p>
+        <p>Dane pobieramy <b>bezpośrednio z pliku KE</b>. Wersję w PLN przeliczamy kursem z tego samego biuletynu;
+        1 m³ = 1000 l.</p>
+      </div>
+      <div>
+        <h4>Dlaczego domyślnie „bez podatków”</h4>
+        <ul>
+          <li>Akcyza i VAT są różne w każdym kraju i zmieniają się decyzją rządu, nie rynku. Cena
+          <b>bez podatków</b> pokazuje sam koszt paliwa: produkt, logistykę i marże.</li>
+          <li>Tylko wersja bez podatków jest porównywalna z <b>giełdą ARA</b> – obie nie zawierają podatków.
+          Odstęp między nimi to koszt dostawy i marże łańcucha (rafineria → hurt → stacja).</li>
+          <li><b>Z podatkami</b> = cena z pylonu, którą płaci kierowca.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Jak używać</h4>
+        <ul>
+          <li><b>Polska drożej niż UE bez podatków</b> – drogi jest sam produkt/logistyka w PL, a nie tylko podatki.</li>
+          <li>WOB jest często wskaźnikiem w <b>klauzulach paliwowych</b> (dopłata paliwowa w umowach przewozowych)
+          – historia tygodniowa od 2005 r. pozwala ją policzyć i sprawdzić.</li>
+          <li><b>Stacje bez podatków vs ARA</b> (niżej) – ile łańcuch dostaw dolicza do ceny giełdowej.</li>
+        </ul>
+      </div>
+    </div>""")
+    st.write("")
+
+    if w_pl.empty:
+        st.error("Brak danych biuletynu KE w bazie. Kliknij „Odśwież dane” (pierwsze pobranie ~4 MB, kilka sekund).")
+    else:
+        st.markdown("#### Historia – Polska vs średnia UE-27")
+        show_ara = w_variant == "netto" and w_unit == "PLN/m³" and not hist.empty
+        rng = range_picker("wob", default="1Y")
+        if rng:
+            sel = lambda s: s[(s.index.date >= rng[0]) & (s.index.date <= rng[1])]  # noqa: E731
+            p_pl, p_eu = sel(w_pl), sel(w_eu)
+            if p_pl.empty:
+                st.info("Brak notowań w wybranym zakresie.")
+            else:
+                items = [
+                    ("line-markers", C["wob"], f"<b>Polska</b> – średnia krajowa na stacjach, {w_lbl}"),
+                    ("dash", C["muted"], f"<b>Średnia UE-27</b> (ważona), {w_lbl}"),
+                ]
+                if show_ara:
+                    items.append(("line", C["ara"], "<b>Giełda ARA</b> w PLN/m³ – też bez podatków; odstęp = logistyka i marże"))
+                ui.legend(items, [
+                    "Notowania tygodniowe (poniedziałek) – linia łączy kolejne biuletyny.",
+                    "Fioletowa <b>nad</b> przerywaną – w Polsce drożej niż średnio w UE.",
+                    "ARA widać tylko w wariancie „Bez podatków” i jednostce PLN/m³ – tylko wtedy porównanie jest uczciwe.",
+                    RANGE_TIP,
+                ])
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=p_eu.index, y=p_eu.values, name="Średnia UE-27", mode="lines",
+                    line=dict(width=1.6, color=C["muted"], dash="dash"),
+                    hovertemplate="UE-27 %{y:,." + str(w_dec) + "f} " + w_unit + "<extra></extra>",
+                ))
+                if show_ara:
+                    h_part = in_range(hist, rng)
+                    if not h_part.empty:
+                        fig.add_trace(go.Scatter(
+                            x=h_part["date"], y=h_part["ara_pln"], name="ARA (PLN/m³)", mode="lines",
+                            line=dict(width=1.6, color=C["ara"]),
+                            hovertemplate="ARA %{y:,.0f} PLN/m³<extra></extra>",
+                        ))
+                fig.add_trace(go.Scatter(
+                    x=p_pl.index, y=p_pl.values, name="Polska", mode="lines+markers",
+                    line=dict(width=2.2, color=C["wob"]), marker=dict(size=4),
+                    hovertemplate="Polska %{y:,." + str(w_dec) + "f} " + w_unit + "<extra></extra>",
+                ))
+                ui.style_fig(fig, 400, yaxis_title=w_unit, hovermode="x unified",
+                             legend=dict(orientation="h", y=1.08, x=0))
+                st.plotly_chart(fig, width="stretch")
+
+        with st.expander("Tabela – ostatnie 12 biuletynów"):
+            t = pd.DataFrame({"pl": w_pl, "eu": w_eu}).dropna(subset=["pl"]).tail(13)
+            t["chg"] = t["pl"].diff()
+            t["vs_eu"] = t["pl"] - t["eu"]
+            t = t.iloc[1:].iloc[::-1] if len(t) > 1 else t
+            table = pd.DataFrame({
+                "Biuletyn": t.index.strftime("%Y-%m-%d"),
+                f"Polska [{w_unit}]": t["pl"].round(w_dec).values,
+                f"Zmiana t/t [{w_unit}]": t["chg"].round(w_dec).values,
+                f"UE-27 [{w_unit}]": t["eu"].round(w_dec).values,
+                f"PL vs UE [{w_unit}]": t["vs_eu"].round(w_dec).values,
+            })
+            cols_help = ui.table_legend({
+                "Biuletyn": "Data notowania (poniedziałek); KE publikuje biuletyn zwykle w czwartek.",
+                f"Polska [{w_unit}]": f"Średnia krajowa cena ON na stacjach w Polsce, {w_lbl}.",
+                f"Zmiana t/t [{w_unit}]": "t/t = tydzień do tygodnia, względem poprzedniego biuletynu.",
+                f"UE-27 [{w_unit}]": "Średnia UE-27 ważona sprzedażą, liczona przez KE.",
+                f"PL vs UE [{w_unit}]": "▲ = w Polsce drożej niż średnio w UE, ▼ = taniej.",
+            }, [ui.TREND_NOTE])
+            st.dataframe(ui.trend_table(
+                table, {f"Zmiana t/t [{w_unit}]": (w_dec, ""), f"PL vs UE [{w_unit}]": (w_dec, "")},
+                {f"Polska [{w_unit}]": f"{{:.{w_dec}f}}", f"UE-27 [{w_unit}]": f"{{:.{w_dec}f}}"},
+            ), hide_index=True, width="stretch", column_config=cols_help)
+
+        st.markdown("#### Stacje PL bez podatków vs giełda ARA")
+        w_pl_m3 = wob_series("netto", "PL", "PLN/m³")
+        spread = pd.DataFrame()
+        if not hist.empty and not w_pl_m3.empty:
+            spread = pd.DataFrame({"date": w_pl_m3.index, "wob": w_pl_m3.values})
+            a_ = hist[["date", "ara_pln", "ara_usd", "fx"]].assign(ara_date=hist["date"]).sort_values("date")
+            spread = pd.merge_asof(spread, a_, on="date", tolerance=pd.Timedelta(days=5)).dropna(subset=["ara_pln"])
+            spread["spread"] = spread["wob"] - spread["ara_pln"]
+        if spread.empty:
+            st.info("Porównanie wymaga notowań ARA z dnia biuletynu (±5 dni) – klucz OilPriceAPI lub wpis ręczny w zakładce ARA. "
+                    "Historia ARA w bazie zaczyna się od pierwszego pobrania z API, więc punkty dojdą z kolejnymi biuletynami.")
+        else:
+            s_last = spread.iloc[-1]
+            ui.html(f"""
+    <div class="formula">
+      <div class="box"><small>Stacje PL bez podatków · biuletyn {s_last['date']:%d.%m.%Y}</small>
+        <b class="num">{ui.num(s_last['wob'])}</b><span class="u">PLN/m³</span></div>
+      <div class="op">−</div>
+      <div class="box"><small>Giełda ARA w PLN/m³ · {s_last['ara_date']:%d.%m.%Y}</small>
+        <b class="num">{ui.num(s_last['ara_pln'])}</b><span class="u">PLN/m³</span></div>
+      <div class="op">=</div>
+      <div class="box res"><small>Odstęp: logistyka i marże łańcucha</small><b class="num">{ui.num(s_last['spread'], sign=True)}</b>
+        <span class="u">PLN/m³</span></div>
+    </div>""")
+            avg_s = spread["spread"].mean()
+            ui.legend([
+                ("line-markers", C["wob"], "<b>Odstęp</b> stacje PL bez podatków − ARA, na dzień biuletynu"),
+                ("dash", C["muted"], f"<b>Średnia</b> z dostępnych punktów ({ui.num(avg_s)} PLN/m³)"),
+            ], [
+                "Obie ceny są <b>bez podatków</b>, więc zmiany akcyzy i VAT nie przesuwają wykresu.",
+                "Odstęp <b>rośnie</b> – stacje/hurt drożeją względem giełdy (lub nie nadążają za jej spadkiem).",
+                "Odstęp <b>maleje</b> – giełda drożeje szybciej, niż ceny dochodzą do stacji.",
+            ])
+            fig = go.Figure(go.Scatter(
+                x=spread["date"], y=spread["spread"], mode="lines+markers",
+                line=dict(width=2, color=C["wob"]), marker=dict(size=6),
+                customdata=spread[["wob", "ara_pln"]].to_numpy(),
+                hovertemplate="%{x|%Y-%m-%d}<br>Odstęp %{y:+,.0f} PLN/m³<br>stacje %{customdata[0]:,.0f} − "
+                              "ARA %{customdata[1]:,.0f}<extra></extra>",
+            ))
+            fig.add_hline(y=avg_s, line=dict(width=1, dash="dash", color=C["muted"]))
+            ui.style_fig(fig, 320, yaxis_title="PLN/m³", hovermode="closest", showlegend=False)
+            st.plotly_chart(fig, width="stretch")
+            st.caption(
+                f"{len(spread)} punktów: biuletyn KE (poniedziałek) i ARA z tego dnia lub ostatniego wcześniejszego notowania "
+                "(maks. 5 dni). Odstęp obejmuje transport, magazynowanie, marżę hurtu i stacji – bez akcyzy, opłat i VAT. "
+                "Nie porównujemy tu z hurtem ORLEN: jego cena zawiera akcyzę i opłatę paliwową, a stawki podatków w Polsce "
+                "zmieniały się w 2026 r. kilka razy, więc takie porównanie dawałoby fałszywy wynik."
+            )
+
 # ================================================================ PREMIA PL vs ARA
 with t_prem:
     st.subheader("Premia PL vs ARA – czym jest i jak ją czytać")
@@ -740,9 +967,9 @@ with t_eu:
     source_warning(wob.LOG_SERIES)
     c1, c2 = st.columns(2)
     eu_variant = c1.segmented_control(
-        "Cena", list(wob.VARIANTS), default="brutto", key="eu_variant",
+        "Cena", list(wob.LABELS), default="netto", key="eu_variant",
         format_func=lambda v: wob.VARIANTS[v][2][0].upper() + wob.VARIANTS[v][2][1:],
-    ) or "brutto"
+    ) or "netto"
     eu_pln = (c2.segmented_control("Jednostka", ["EUR/l", "PLN/l"], default="EUR/l", key="eu_unit") or "EUR/l") == "PLN/l"
     eu_unit = "PLN/l" if eu_pln else "EUR/l"
     eu_dec = 2 if eu_pln else 3

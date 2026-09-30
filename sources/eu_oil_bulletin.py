@@ -30,6 +30,8 @@ VARIANTS = {
     "brutto": ("Prices with taxes", "_price_with_tax_diesel", "z podatkami (cena na pylonie)"),
     "netto": ("Prices wo taxes", "_price_wo_tax_diesel", "bez akcyzy, opłat i VAT"),
 }
+# krótkie etykiety do przełączników; bez podatków pierwsze = domyślne (porównywalne między krajami i z ARA)
+LABELS = {"netto": "Bez podatków", "brutto": "Z podatkami"}
 LOG_SERIES = "eu_oil_bulletin"  # nazwa w fetch_log (jedno pobranie = wszystkie kraje)
 FX_SERIES = "eu_wob_eur_per_pln"  # kurs z biuletynu: ile EUR za 1 PLN (do przeliczenia na PLN/l)
 FX_UNIT = "EUR za 1 PLN"
