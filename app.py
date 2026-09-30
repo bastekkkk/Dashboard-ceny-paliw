@@ -9,8 +9,8 @@ import streamlit as st
 import auth
 import db
 import login_ui
+import scheduler
 import ui
-import update_data
 from sources import ara_manual, oilpriceapi, orlen, yahoo
 from sources import eu_oil_bulletin as wob
 from ui import C, CATEGORICAL
@@ -26,6 +26,17 @@ TRANSIT = ["PL", "DE", "CZ", "SK", "LT", "LV", "AT", "HU", "NL", "BE", "LU", "FR
 st.set_page_config(page_title="Ceny paliw – hurt i stacje", layout="wide")
 ui.inject_css()
 auth.require_password()
+
+# ---------------------------------------------------------------- auto-odświeżanie 18:30
+scheduler.start()
+if scheduler.is_due():
+    if scheduler.is_running():
+        st.info("Trwa automatyczne odświeżanie danych – za chwilę odśwież stronę. Poniżej dane zapisane w bazie.")
+    else:
+        with st.spinner(f"Automatyczne odświeżanie danych (termin {scheduler.last_slot():%d.%m %H:%M})…"):
+            if auto_results := scheduler.run_if_due():
+                st.session_state["refresh_results"] = auto_results
+                st.rerun()
 
 
 @st.cache_data(ttl=900)
@@ -192,14 +203,14 @@ h_fresh.markdown(
     + fresh_chip("ARA", ara_df, ara_manual.SERIES)
     + fresh_chip("USD/PLN", fx_df, "usdpln")
     + fresh_chip("UE", eu_last_day, wob.LOG_SERIES)
+    + f'<span>· auto-odświeżanie pon–sob 18:30, następne <span class="num">{scheduler.next_slot():%d.%m %H:%M}</span></span>'
     + "</div>",
     unsafe_allow_html=True,
 )
 if h_btn.button("Odśwież dane", type="primary", icon=":material/refresh:", width="stretch",
-                help="Uruchamia ten sam kod co `python update_data.py`. Dane w bazie mają cache 15 min."):
+                help="Uruchamia ten sam kod co `python update_data.py`. Automatycznie: pon–sob o 18:30."):
     with st.spinner("Pobieram dane…"):
-        st.session_state["refresh_results"] = update_data.run_all()
-    st.cache_data.clear()
+        st.session_state["refresh_results"] = scheduler.run_now()
     st.rerun()
 
 if results := st.session_state.pop("refresh_results", None):

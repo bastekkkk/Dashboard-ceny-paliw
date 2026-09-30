@@ -24,6 +24,9 @@ Aplikacja startuje zablokowana, dopóki nie dostanie skrótu hasła `APP_PASSWOR
 
 ## Odświeżanie danych
 
+- **Automatycznie w aplikacji** (`scheduler.py`): pon–sob o **18:30 czasu polskiego**. Wątek w tle pobiera dane, póki
+  serwer działa; jeśli aplikacja o 18:30 spała (np. Streamlit Community Cloud), pierwsze wejście po tej godzinie
+  pobiera je od razu (~15–30 s). Termin jest „zaliczony” każdym pobraniem po 18:30, także przyciskiem.
 - Ręcznie: `python update_data.py` albo przycisk **„Odśwież dane”** w aplikacji (ten sam kod).
 - cron (Linux/macOS), pon–sob 18:30: `30 18 * * 1-6 cd /ścieżka/do/repo && .venv/bin/python update_data.py`
 - Windows: Harmonogram zadań → akcja `.venv\Scripts\python.exe update_data.py`, katalog startowy = repo.
@@ -58,6 +61,7 @@ Historia premii: punkt w każdy dzień z notowaniem ARA (Orlen i USD/PLN z tego 
 
 ```
 app.py            UI Streamlit: kafelki KPI + zakładki (Przegląd, Hurt ORLEN, ARA, Premia, Stacje UE, Rynki); czyta tylko z bazy, cache 15 min
+scheduler.py      auto-odświeżanie pon–sob 18:30 (wątek + nadrabianie po uśpieniu)
 auth.py           bramka hasła (scrypt, skrót tylko w sekretach)
 login_ui.py       ekran logowania w barwach ID Logistics (logo: assets/id-logistics-logo.jpg)
 ui.py             motyw w barwach ID Logistics (granat + czerwień), karty HTML, sparklines, wspólny styl wykresów Plotly

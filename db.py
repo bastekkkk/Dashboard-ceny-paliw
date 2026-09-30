@@ -93,3 +93,10 @@ def last_fetch(series: str) -> dict | None:
             (series,),
         ).fetchone()
     return None if row is None else {"ts": row[0], "ok": bool(row[1]), "message": row[2]}
+
+
+def last_fetch_ts() -> str | None:
+    """Czas ostatniego pobrania dowolnej serii (czas lokalny serwera, ISO)."""
+    with connect() as con:
+        row = con.execute("SELECT MAX(ts) FROM fetch_log").fetchone()
+    return row[0]
