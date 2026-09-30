@@ -498,7 +498,9 @@ with t_prem:
       <div class="box"><small>Giełda ARA przeliczona na PLN/m³</small><b class="num">{f_ara}</b><span class="u">PLN/m³</span></div>
       <div class="op">=</div>
       <div class="box res"><small>Premia PL vs ARA</small><b class="num">{f_prem}</b><span class="u">PLN/m³</span></div>
-    </div>
+    </div>""")
+    with st.expander("Czym jest premia i jak ją czytać"):
+        ui.html(f"""
     <div class="explain">
       <div>
         <h4>Co to jest</h4>
@@ -673,19 +675,6 @@ with t_eu:
         </ul>
       </div>
     </div>""")
-    with st.expander("Dla przewoźnika: co to znaczy przy tankowaniu za granicą"):
-        st.markdown(
-            "- **VAT da się odzyskać** – firma odlicza VAT w Polsce, a zagraniczny VAT odzyskuje przez procedurę "
-            "zwrotu VAT z innych krajów UE. Realna różnica między krajami jest więc bliższa cenie **bez VAT** niż "
-            "cenie z pylonu.\n"
-            "- **Akcyzy nie odzyskasz** (poza wyjątkami) – dlatego kraje z wysoką akcyzą są droższe także dla firm.\n"
-            "- **Zwrot części akcyzy dla transportu** („professional diesel”) – w niektórych krajach "
-            "(np. Belgia, Francja, Włochy, Hiszpania) przewoźnicy mogą odzyskać część akcyzy za paliwo do ciężarówek. "
-            "Warunki i stawki ustala każdy kraj – sprawdź u operatora kart paliwowych.\n"
-            "- **Średnia krajowa ≠ Twoja cena** – stacje przy autostradach są zwykle droższe, a karty flotowe "
-            "mają rabaty. Biuletyn dobrze pokazuje różnice między krajami, gorzej cenę na konkretnej stacji.\n"
-            "- **Dane z tygodniowym opóźnieniem** – notowanie z poniedziałku, publikacja w czwartek."
-        )
     st.write("")
 
     if eu.empty or "PL" not in eu:
