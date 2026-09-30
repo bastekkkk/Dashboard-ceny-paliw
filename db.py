@@ -60,6 +60,18 @@ def read_series(series: str) -> pd.DataFrame:
     return df
 
 
+def read_series_like(prefix: str) -> pd.DataFrame:
+    """Wszystkie serie o nazwie zaczynającej się od prefix (kolumny: series, date, value, unit, source)."""
+    with connect() as con:
+        df = pd.read_sql_query(
+            "SELECT series, date, value, unit, source FROM prices WHERE series LIKE ? ESCAPE '\\' ORDER BY series, date",
+            con,
+            params=(prefix.replace("_", r"\_") + "%",),
+        )
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
 def last_date(series: str) -> str | None:
     with connect() as con:
         row = con.execute("SELECT MAX(date) FROM prices WHERE series=?", (series,)).fetchone()

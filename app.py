@@ -8,10 +8,13 @@ import streamlit as st
 import db
 import update_data
 from sources import ara_manual, oilpriceapi, orlen, yahoo
+from sources import eu_oil_bulletin as wob
 
 M3_PER_T = 1.1834  # 1 t / 0,845 kg/l = 1183,4 l
 PRESETS = {"7D": 7, "1M": 30, "3M": 91, "6M": 182, "1Y": 365, "MAX": None}
-COLORS = {"single": "#2a78d6", "gold": "#2a78d6", "silver": "#eb6834", "usdpln": "#1baf7a"}
+COLORS = {"single": "#2a78d6", "gold": "#2a78d6", "silver": "#eb6834", "usdpln": "#1baf7a", "muted": "#b4b2ab"}
+# kolejność kolorów kategorii (kraje na wykresie historii); kolor przypisany wg kolejności wyboru
+CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
 
 st.set_page_config(page_title="Ceny paliw – hurt", layout="wide")
 
@@ -19,6 +22,21 @@ st.set_page_config(page_title="Ceny paliw – hurt", layout="wide")
 @st.cache_data(ttl=900)
 def load(series: str) -> pd.DataFrame:
     return db.read_series(series)
+
+
+@st.cache_data(ttl=900)
+def load_eu(variant: str, pln: bool) -> pd.DataFrame:
+    """Tabela szeroka: indeks = data biuletynu, kolumny = kody krajów/średnich; EUR/l lub PLN/l."""
+    prefix = wob.series_name(variant, "")
+    df = db.read_series_like(prefix)
+    if df.empty:
+        return pd.DataFrame()
+    df["code"] = df["series"].str[len(prefix):]
+    wide = df.pivot(index="date", columns="code", values="value").sort_index()
+    if pln:
+        fx = db.read_series(wob.FX_SERIES).set_index("date")["value"]  # EUR za 1 PLN, z tego samego biuletynu
+        wide = wide.div(fx.reindex(wide.index), axis=0).dropna(how="all")
+    return wide
 
 
 def source_warning(series: str) -> None:
@@ -291,3 +309,107 @@ else:
             + (f", w tym {n_avg} liczonych ze średniej dziennej ARA (linia kropkowana) – porównuj je ostrożnie" if n_avg else "")
             + ". Punkt tylko w dni z notowaniem ARA; Orlen i USD/PLN z tego dnia lub ostatniego wcześniejszego notowania."
         )
+
+# ---------------------------------------------------------------- 4. Ceny ON na stacjach w Europie
+st.header("4. Olej napędowy na stacjach w krajach UE")
+st.caption(
+    "Źródło: [Weekly Oil Bulletin Komisji Europejskiej](" + wob.PAGE_URL + ") – oficjalne średnie krajowe ceny "
+    "detaliczne, notowanie tygodniowe (poniedziałek), publikacja zwykle w czwartek. Te same dane pokazuje m.in. "
+    "e-petrol.pl (strona blokuje automatyczne pobieranie, więc czytamy je u źródła). Biuletyn obejmuje tylko UE-27 – "
+    "bez Norwegii, Szwajcarii, Ukrainy itp."
+)
+source_warning(wob.LOG_SERIES)
+c1, c2 = st.columns(2)
+eu_variant = c1.radio(
+    "Cena", list(wob.VARIANTS), horizontal=True, key="eu_variant",
+    format_func=lambda v: wob.VARIANTS[v][2][0].upper() + wob.VARIANTS[v][2][1:],
+)
+eu_pln = c2.radio("Jednostka", ["EUR/l", "PLN/l"], horizontal=True, key="eu_unit") == "PLN/l"
+eu_unit = "PLN/l" if eu_pln else "EUR/l"
+eu_dec = 2 if eu_pln else 3
+eu = load_eu(eu_variant, eu_pln)
+
+if eu.empty or "PL" not in eu:
+    st.error("Brak danych biuletynu KE w bazie. Kliknij „Odśwież dane” (pierwsze pobranie ~4 MB, kilka sekund).")
+else:
+    last_day = eu["PL"].dropna().index.max()
+    prev_day = eu.index[eu.index < last_day].max()
+    now, prev = eu.loc[last_day], eu.loc[prev_day] if pd.notna(prev_day) else None
+    countries = [c for c in now.dropna().index if c not in wob.AVERAGES]
+    ranked = now[countries].sort_values()
+    pl, eu_avg = now["PL"], now.get("EU")
+    fmt = f"{{:,.{eu_dec}f}}"
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric(
+        f"Polska {last_day:%Y-%m-%d}", f"{fmt.format(pl)} {eu_unit}",
+        None if prev is None else f"{fmt.format(pl - prev['PL'])} t/t",
+    )
+    if pd.notna(eu_avg):
+        m2.metric("Średnia UE-27 (ważona)", f"{fmt.format(eu_avg)} {eu_unit}")
+        m3.metric("Polska vs średnia UE", f"{pl - eu_avg:+,.{eu_dec}f} {eu_unit}", f"{pl / eu_avg - 1:+.1%}",
+                  delta_color="inverse")
+    m4.metric("Pozycja Polski", f"{list(ranked.index).index('PL') + 1}. z {len(ranked)}", help="1 = najtańszy kraj")
+    st.caption(f"Biuletyn z **{last_day:%Y-%m-%d}** · {wob.VARIANTS[eu_variant][2]}"
+               + (" · przeliczenie kursem EUR/PLN z tego samego biuletynu" if eu_pln else ""))
+
+    names = [wob.COUNTRIES.get(c, c) for c in ranked.index]
+    change = (ranked - prev[ranked.index]) if prev is not None else ranked * float("nan")
+    # wykres punktowy, nie słupkowy: oś X nie startuje od zera, więc długość słupka by przekłamywała
+    fig = go.Figure(go.Scatter(
+        x=ranked.values, y=names, mode="markers",
+        marker=dict(size=[14 if c == "PL" else 10 for c in ranked.index],
+                    color=[COLORS["single"] if c == "PL" else COLORS["muted"] for c in ranked.index]),
+        customdata=pd.DataFrame({"chg": change.values, "vs_pl": (ranked - pl).values}).to_numpy(),
+        hovertemplate="<b>%{y}</b><br>%{x:." + str(eu_dec) + "f} " + eu_unit
+                      + "<br>t/t %{customdata[0]:+." + str(eu_dec) + "f}"
+                      + "<br>vs Polska %{customdata[1]:+." + str(eu_dec) + "f}<extra></extra>",
+    ))
+    if pd.notna(eu_avg):
+        fig.add_vline(x=eu_avg, line=dict(width=1, dash="dash", color="gray"),
+                      annotation_text=f"średnia UE {fmt.format(eu_avg)}", annotation_position="top")
+    fig.update_layout(
+        height=max(420, 22 * len(ranked)), margin=dict(l=10, r=10, t=30, b=10), hovermode="closest",
+        xaxis=dict(title=eu_unit), yaxis=dict(autorange="reversed", showgrid=True),
+    )
+    st.plotly_chart(fig, width="stretch")
+    st.caption("Posortowane od najtańszego; Polska wyróżniona. Oś X nie zaczyna się od zera – porównuj odległości między punktami.")
+
+    with st.expander("Tabela – wszystkie kraje"):
+        table = pd.DataFrame({
+            "Kraj": names,
+            f"Cena [{eu_unit}]": ranked.round(eu_dec).values,
+            f"Zmiana t/t [{eu_unit}]": change.round(eu_dec).values,
+            f"vs Polska [{eu_unit}]": (ranked - pl).round(eu_dec).values,
+            f"vs Polska na 1000 l [{eu_unit[:3]}]": ((ranked - pl) * 1000).round(0).values,
+        })
+        st.dataframe(table, hide_index=True, width="stretch")
+        st.caption("„vs Polska na 1000 l” – ile więcej (+) lub mniej (−) zapłacisz za 1000 l w danym kraju niż w Polsce "
+                   "przy średniej krajowej cenie.")
+
+    st.subheader("Historia cen w wybranych krajach")
+    options = [c for c in wob.COUNTRIES if c in eu.columns]
+    default = [c for c in ["PL", "DE", "CZ", "SK", "LT", "EU"] if c in options]
+    picked = st.multiselect("Kraje (maks. 8)", options, default=default, max_selections=8,
+                            format_func=lambda c: wob.COUNTRIES.get(c, c), key="eu_countries")
+    rng = range_picker("eu")
+    if picked and rng:
+        part = eu[(eu.index.date >= rng[0]) & (eu.index.date <= rng[1])]
+        if part.empty:
+            st.info("Brak notowań w wybranym zakresie.")
+        else:
+            fig = go.Figure()
+            for i, code in enumerate(picked):
+                col = part[code].dropna()
+                if col.empty:
+                    continue
+                name = wob.COUNTRIES.get(code, code)
+                fig.add_trace(go.Scatter(
+                    x=col.index, y=col.values, name=name, mode="lines",
+                    line=dict(width=2, color=CATEGORICAL[i], dash="dash" if code in wob.AVERAGES else "solid"),
+                    hovertemplate="%{y:." + str(eu_dec) + "f} " + eu_unit + "<extra>" + name + "</extra>",
+                ))
+            fig.update_layout(height=420, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=eu_unit,
+                              hovermode="x unified", legend=dict(orientation="h", y=1.1))
+            st.plotly_chart(fig, width="stretch")
+            st.caption("Notowania tygodniowe od 2005 r. Średnie UE i strefy euro linią przerywaną.")
