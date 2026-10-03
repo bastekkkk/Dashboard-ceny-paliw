@@ -1,0 +1,11 @@
+services:
+  dashboard:
+    build: .
+    image: dashboard-ceny-paliw
+    container_name: dashboard-ceny-paliw
+    ports:
+      - "8501:8501"
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

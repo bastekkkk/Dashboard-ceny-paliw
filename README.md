@@ -12,6 +12,20 @@ python -m venv .venv && export OILPRICEAPI_KEY=twoj_klucz   # Windows: setx OILP
 .venv/bin/streamlit run app.py                   # http://localhost:8501
 ```
 
+## Docker
+
+```bash
+git clone https://github.com/bastekkkk/Dashboard-ceny-paliw.git && cd Dashboard-ceny-paliw
+cp .env.example .env                             # wpisz APP_PASSWORD_HASH (w '…') i OILPRICEAPI_KEY
+docker compose up -d --build                     # http://localhost:8501
+docker compose exec dashboard python update_data.py   # pierwsze pobranie historii (opcjonalnie – scheduler i przycisk też to zrobią)
+```
+
+- Skrót hasła bez lokalnego Pythona: `docker compose run --rm dashboard python auth.py`.
+- Baza leży na hoście w `./data/prices.db` (wolumen) – przetrwa `docker compose down` i przebudowę obrazu.
+- Auto-odświeżanie 18:30 działa w kontenerze, dopóki ten chodzi (`restart: unless-stopped`).
+- Aktualizacja kodu: `git pull && docker compose up -d --build`. Logi: `docker compose logs -f`.
+
 ## Język (PL / EN)
 
 Przełącznik **PL | EN** jest w nagłówku dashboardu i na ekranie logowania. Wybór trafia do adresu (`?lang=en`),
